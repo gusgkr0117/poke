@@ -1,3 +1,7 @@
 add_subdirectory(common)
 add_subdirectory(precomp)
 add_subdirectory(gf)
+add_subdirectory(intbig)
+add_subdirectory(ec)
+add_subdirectory(hd)
+add_subdirectory(poke)

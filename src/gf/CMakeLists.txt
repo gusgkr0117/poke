@@ -5,9 +5,9 @@ set(SOURCE_FILES_GF
     fp_p431.c
 )
 
-add_library(poke_gf ${SOURCE_FILES_GF})
-target_include_directories(poke_gf PRIVATE include ${INC_COMMON} ${INC_PRECOMP})
-target_compile_options(poke_gf PRIVATE ${C_OPT_FLAGS})
+add_library(lib_gf ${SOURCE_FILES_GF})
+target_include_directories(lib_gf PRIVATE include ${INC_COMMON} ${INC_PRECOMP})
+target_compile_options(lib_gf PRIVATE ${C_OPT_FLAGS})
 
 include(${SELECT_IMPL_TYPE})
 include(${SELECT_POKE_VARIANT})

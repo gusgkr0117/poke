@@ -7,6 +7,8 @@ set(CMAKE_C_STANDARD 99)
 set(SELECT_POKE_VARIANT ${PROJECT_SOURCE_DIR}/.cmake/poke_variant.cmake)
 set(SELECT_IMPL_TYPE ${PROJECT_SOURCE_DIR}/.cmake/impl_type.cmake)
 
+set(INC_PUBLIC ${PROJECT_SOURCE_DIR}/include)
+
 include(.cmake/target.cmake)
 
 add_subdirectory(src)
