@@ -7,15 +7,19 @@ if not require_version(9, 8, print_message=True):
 
 ################################################################
 
-from parameters import p, B, f, Tpls, Tmin, Dcom, Dchall
+from parameters import p, B, use_twist, f, Tpls, Tmin, Dcom, Dchall
 
 ################################################################
 
 Lpls = sorted(set(Tpls.prime_factors()) - {2})
 Epls = [Tpls.valuation(l) for l in Lpls]
 
-Lmin = sorted(set(Tmin.prime_factors()) - {2})
-Emin = [Tmin.valuation(l) for l in Lmin]
+if use_twist == 1:
+    Lmin = sorted(set(Tmin.prime_factors()) - {2})
+    Emin = [Tmin.valuation(l) for l in Lmin]
+else:
+    Lmin = []
+    Emin = []
 
 tors2part = (p+1).p_primary_part(2)
 tors3part = (p+1).p_primary_part(3)
@@ -29,7 +33,8 @@ defs = {
 
 from cformat import Ibz, Object, ObjectFormatter
 
-objs = ObjectFormatter([
+if use_twist == 1:
+    objs = ObjectFormatter([
         Object('uint64_t', 'TORSION_PLUS_EVEN_POWER', int(f)),
         Object('uint64_t[]', 'TORSION_ODD_PRIMES', Lpls + Lmin),
         Object('uint64_t[]', 'TORSION_ODD_POWERS', Epls + Emin),
@@ -51,7 +56,29 @@ objs = ObjectFormatter([
         Object('ibz_t', 'DEGREE_COMMITMENT_MINUS', Ibz(gcd(Dcom, Tmin))),
         Object('ibz_t', 'DEGREE_CHALLENGE', Ibz(Dchall)),
     ])
-
+else :
+    objs = ObjectFormatter([
+        Object('uint64_t', 'TORSION_PLUS_EVEN_POWER', int(f)),
+        Object('uint64_t[]', 'TORSION_ODD_PRIMES', Lpls + Lmin),
+        Object('uint64_t[]', 'TORSION_ODD_POWERS', Epls + Emin),
+        Object('uint64_t[]', 'TORSION_PLUS_ODD_PRIMES', Lpls),      # TODO deduplicate?
+        Object('size_t[]', 'TORSION_PLUS_ODD_POWERS', Epls),        # TODO deduplicate?
+        # Object('uint64_t[]', 'TORSION_MINUS_ODD_PRIMES', Lmin),     # TODO deduplicate?
+        # Object('size_t[]', 'TORSION_MINUS_ODD_POWERS', Emin),       # TODO deduplicate?
+        Object('size_t[]', 'DEGREE_COMMITMENT_POWERS', [Dcom.valuation(l) for l in Lpls+Lmin]), #FIXME should be ec_degree_odd_t
+        Object('ibz_t', 'CHARACTERISTIC', Ibz(p)),
+        Object('ibz_t', 'TORSION_ODD', Ibz(Tpls * Tmin)),
+        Object('ibz_t[]', 'TORSION_ODD_PRIMEPOWERS', [Ibz(l^e) for l,e in Tpls.factor()]),
+        Object('ibz_t', 'TORSION_ODD_PLUS', Ibz(Tpls)),
+        Object('ibz_t', 'TORSION_ODD_MINUS', Ibz(Tmin)),
+        Object('ibz_t', 'TORSION_PLUS_2POWER', Ibz(tors2part)),
+        Object('ibz_t', 'TORSION_PLUS_3POWER', Ibz(tors3part)),
+        Object('ibz_t', 'TORSION_PLUS_23POWER', Ibz(tors23part)),
+        Object('ibz_t', 'DEGREE_COMMITMENT', Ibz(Dcom)),
+        Object('ibz_t', 'DEGREE_COMMITMENT_PLUS', Ibz(gcd(Dcom, Tpls))),
+        Object('ibz_t', 'DEGREE_COMMITMENT_MINUS', Ibz(gcd(Dcom, Tmin))),
+        Object('ibz_t', 'DEGREE_CHALLENGE', Ibz(Dchall)),
+    ])
 with open('include/torsion_constants.h','w') as hfile:
     with open('torsion_constants.c','w') as cfile:
         print(f'#include <intbig.h>', file=hfile)
