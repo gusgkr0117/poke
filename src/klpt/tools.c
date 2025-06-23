@@ -1,3 +1,4 @@
+#include <gmp.h>
 #include <quaternion.h>
 #include <klpt.h>
 #include "tools.h"
@@ -422,7 +423,6 @@ solve_combi_eichler(ibz_vec_2_t *C,
 int
 represent_integer(quat_alg_elem_t *gamma, ibz_t *n_gamma, const quat_alg_t *Bpoo)
 {
-
     // var dec
     int found;
     int cnt;
@@ -467,7 +467,6 @@ represent_integer(quat_alg_elem_t *gamma, ibz_t *n_gamma, const quat_alg_t *Bpoo
         ibz_mul(&cornacchia_target, &coeffs[2], &coeffs[2]);
         ibz_sub(&temp, &sq_bound, &cornacchia_target);
         ibz_sqrt_floor(&temp, &temp);
-
         if (ibz_cmp(&temp, &ibz_const_zero) == 0) {
             continue;
         }
@@ -480,7 +479,6 @@ represent_integer(quat_alg_elem_t *gamma, ibz_t *n_gamma, const quat_alg_t *Bpoo
         ibz_mul(&cornacchia_target, &cornacchia_target, &Bpoo->p);
         ibz_sub(&cornacchia_target, &adjusted_n_gamma, &cornacchia_target);
         // applying cornacchia extended
-
         found = ibz_cornacchia_extended(&coeffs[0],
                                         &coeffs[1],
                                         &cornacchia_target,

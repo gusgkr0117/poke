@@ -49,12 +49,15 @@ int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
 }
 
 int test() {
-    ibz_t q, alpha, beta, gamma, delta;
+    ibz_t q, alpha, beta, gamma, delta, rhs, deg;
     
     ibz_init(&q); ibz_init(&alpha); ibz_init(&beta);
-    ibz_init(&gamma); ibz_init(&delta);
+    ibz_init(&gamma); ibz_init(&delta); ibz_init(&rhs); ibz_init(&deg);
     // Set q to a random value in the range [0, TORSION_PLUS_2POWER)
     ibz_rand_interval(&q, &ibz_const_zero, &TORSION_PLUS_2POWER);
+    ibz_sub(&deg, &TORSION_PLUS_2POWER, &q);
+    ibz_mul(&rhs, &deg, &q);
+    ibz_mul(&rhs, &rhs, &TORSION_PLUS_3POWER);
     ibz_random_unit(&alpha, &TORSION_PLUS_2POWER);
     ibz_random_unit(&beta, &TORSION_PLUS_2POWER);
     ibz_random_unit(&gamma, &TORSION_PLUS_3POWER);
@@ -73,7 +76,7 @@ int test() {
 
     quat_alg_elem_t tau;
     quat_alg_elem_init(&tau);
-    represent_integer_non_diag(&tau, &q, &QUATALG_PINFTY);
+    represent_integer(&tau, &rhs, &QUATALG_PINFTY);
 
     quat_alg_elem_print(&tau);
     return 0; 
