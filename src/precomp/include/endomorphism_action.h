@@ -1,6 +1,6 @@
 #include <intbig.h>
 #include <ec.h>
-// #include <quaternion.h>
+#include <quaternion.h>
 extern const ec_basis_t BASIS_EVEN;
 extern const ec_basis_t BASIS_THREE;
 extern const ec_basis_t BASIS_ODD_PLUS;

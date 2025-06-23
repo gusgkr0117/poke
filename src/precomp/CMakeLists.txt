@@ -2,12 +2,14 @@ set(SOURCE_FILES_PRECOMP
     gf_constants.c
     torsion_constants.c
     endomorphism_action.c
+    klpt_constants.c
+    quaternion_data.c
 )
 include(${SELECT_IMPL_TYPE})
 include(${SELECT_POKE_VARIANT})
 
 add_library(lib_precomp ${SOURCE_FILES_PRECOMP})
-target_include_directories(lib_precomp PRIVATE ${INC_EC} ${INC_COMMON} ${INC_INTBIG} ${PROJECT_SOURCE_DIR}/src/gf/include include)
+target_include_directories(lib_precomp PRIVATE ${INC_EC} ${INC_COMMON} ${INC_INTBIG} ${INC_QUATERNION} ${PROJECT_SOURCE_DIR}/src/gf/include include)
 
 add_custom_command(
     OUTPUT
@@ -15,10 +17,10 @@ add_custom_command(
         # "${CMAKE_CURRENT_SOURCE_DIR}/torsion_constants.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/include/torsion_constants.h"
         # "${CMAKE_CURRENT_SOURCE_DIR}/include/klpt_constants.h"
-        # "${CMAKE_CURRENT_SOURCE_DIR}/klpt_constants.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/klpt_constants.c"
         # "${CMAKE_CURRENT_SOURCE_DIR}/include/encoded_sizes.h"
-        # "${CMAKE_CURRENT_SOURCE_DIR}/quaternion_data.c"
-        # "${CMAKE_CURRENT_SOURCE_DIR}/include/quaternion_data.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/quaternion_data.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/quaternion_data.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/endomorphism_action.c"
         # "${CMAKE_CURRENT_SOURCE_DIR}/include/endomorphism_action.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/include/ec_params.h"
@@ -38,6 +40,10 @@ add_custom_target(precomp
         "${SAGEMATH}" "${PROJECT_SOURCE_DIR}/scripts/ec_params.py"
     COMMAND
         "${SAGEMATH}" "${PROJECT_SOURCE_DIR}/scripts/precompute_gf_constants.sage"
+    COMMAND
+        "${SAGEMATH}" "${PROJECT_SOURCE_DIR}/scripts/precompute_klpt_constants.sage"
+    COMMAND
+        "${SAGEMATH}" "${PROJECT_SOURCE_DIR}/scripts/precompute_quaternion_data.sage"
     WORKING_DIRECTORY
         "${CMAKE_CURRENT_SOURCE_DIR}"
 )

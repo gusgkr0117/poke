@@ -1,6 +1,7 @@
 #include <intbig.h>
 #define TORSION_2POWER_BYTES 17
 #define TORSION_3POWER_BYTES 33
+#define TORSION_5POWER_BYTES 6
 #define TORSION_23POWER_BYTES 49
 extern const uint64_t TORSION_PLUS_EVEN_POWER;
 extern const uint64_t TORSION_ODD_PRIMES[2];
@@ -15,6 +16,7 @@ extern const ibz_t TORSION_ODD_PLUS;
 extern const ibz_t TORSION_ODD_MINUS;
 extern const ibz_t TORSION_PLUS_2POWER;
 extern const ibz_t TORSION_PLUS_3POWER;
+extern const ibz_t TORSION_PLUS_5POWER;
 extern const ibz_t TORSION_PLUS_23POWER;
 extern const ibz_t DEGREE_COMMITMENT;
 extern const ibz_t DEGREE_COMMITMENT_PLUS;
