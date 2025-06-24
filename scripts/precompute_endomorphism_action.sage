@@ -7,7 +7,7 @@ if not require_version(10, 0, print_message=True):
 
 ################################################################
 
-from parameters import p, B, use_twist, f, Tpls, Tmin, Dcom, Dchall, exp3
+from parameters import p, B, use_twist, f, Tpls, Tmin, Dcom, Dchall, exp3, exp5
 T = Tpls * Tmin
 
 ################################################################
@@ -186,6 +186,7 @@ def fmt_basis(name, P, Q):
 bases = {
         'EVEN': 1<<f,
         'THREE': 3**exp3,
+        'FIVE': 5**exp5,
         'ODD_PLUS': Tpls,
         'ODD_MINUS': Tmin,
         'COMMITMENT_PLUS': gcd(Tpls, Dcom),
@@ -200,14 +201,14 @@ objs = ObjectFormatter([
     ] + [
         Object('ec_curve_t', 'CURVE_E0', [[[int(0)]], [[int(1)]]]),
         Object('ec_point_t', 'CURVE_E0_A24', [[[int(0)]], [[int(1)]]]),
-        # Object('ibz_mat_2x2_t', 'ACTION_I', [[Ibz(v) for v in vs] for vs in mati]),
-        # Object('ibz_mat_2x2_t', 'ACTION_J', [[Ibz(v) for v in vs] for vs in matj]),
-        # Object('ibz_mat_2x2_t', 'ACTION_K', [[Ibz(v) for v in vs] for vs in matk]),
-        # Object('ibz_mat_2x2_t', 'ACTION_GEN2', [[Ibz(v) for v in vs] for vs in mat2]),
-        # Object('ibz_mat_2x2_t', 'ACTION_GEN3', [[Ibz(v) for v in vs] for vs in mat3]),
-        # Object('ibz_mat_2x2_t', 'ACTION_GEN4', [[Ibz(v) for v in vs] for vs in mat4]),
-        # Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_UNDISTORTED_GEN', [Ibz(1), [Ibz(ZZ(v)) for v in idealPgen]]),
-        # Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_DISTORTION_ENDO', [Ibz(1), [Ibz(ZZ(v)) for v in distorter]]),
+        Object('ibz_mat_2x2_t', 'ACTION_I', [[Ibz(v) for v in vs] for vs in mati]),
+        Object('ibz_mat_2x2_t', 'ACTION_J', [[Ibz(v) for v in vs] for vs in matj]),
+        Object('ibz_mat_2x2_t', 'ACTION_K', [[Ibz(v) for v in vs] for vs in matk]),
+        Object('ibz_mat_2x2_t', 'ACTION_GEN2', [[Ibz(v) for v in vs] for vs in mat2]),
+        Object('ibz_mat_2x2_t', 'ACTION_GEN3', [[Ibz(v) for v in vs] for vs in mat3]),
+        Object('ibz_mat_2x2_t', 'ACTION_GEN4', [[Ibz(v) for v in vs] for vs in mat4]),
+        Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_UNDISTORTED_GEN', [Ibz(1), [Ibz(ZZ(v)) for v in idealPgen]]),
+        Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_DISTORTION_ENDO', [Ibz(1), [Ibz(ZZ(v)) for v in distorter]]),
     ])
 
 with open('include/endomorphism_action.h','w') as hfile:

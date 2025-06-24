@@ -7,33 +7,7 @@
 #include <intbig.h>
 #include <ec.h>
 #include <rng.h>
-
-// Solve x^2+y^2=p using cornacchia algorithm
-// This function assumes that p is a non-negative integer and returns 1 if a solution is found,
-// and 0 if no solution exists. The solution is stored in x and y.
-int ibz_qf_solve(ibz_t *x, ibz_t *y, ibz_t *p){
-    ibz_t d, p_minus_one;
-    ibz_init(&d);
-    ibz_init(&p_minus_one);
-    ibz_sub(&p_minus_one, p, &ibz_const_one); // p - 1
-
-    ibz_sqrt_mod_p(&d, &p_minus_one, p);
-
-    // Euclidean algorithm for d and p
-    ibz_t a, b, r;
-    ibz_init(&a);
-    ibz_init(&b);
-    ibz_init(&r);
-    ibz_copy(&a, &d);
-    ibz_copy(&b, p);
-    while (!ibz_is_zero(&b)) {
-        ibz_mod(&r, &a, &b);
-        ibz_copy(&a, &b);
-        ibz_copy(&b, &r);
-    }
-
-    return 1; // Solution found
-}
+#include <id2iso.h>
 
 int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
     ibz_t gcd;
@@ -50,16 +24,25 @@ int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
 
 int test() {
     ibz_t q, alpha, beta, gamma, delta, rhs, deg;
+    ibz_t A;
     
     ibz_init(&q); ibz_init(&alpha); ibz_init(&beta);
     ibz_init(&gamma); ibz_init(&delta); ibz_init(&rhs); ibz_init(&deg);
+    ibz_init(&A);
+    ibz_div_2exp(&A, &TORSION_PLUS_2POWER, 2);
     // Set q to a random value in the range [0, TORSION_PLUS_2POWER)
-    ibz_rand_interval(&q, &ibz_const_zero, &TORSION_PLUS_2POWER);
-    ibz_sub(&deg, &TORSION_PLUS_2POWER, &q);
+    for(int i = 0; i < 1000; i++) {
+        ibz_rand_interval(&q, &ibz_const_zero, &A);
+        ibz_sub(&deg, &A, &q);
+        if (ibz_divides(&q, &ibz_const_two) == 0 && ibz_divides(&q, &ibz_const_three) == 0 && ibz_divides(&q, &ibz_const_five) == 0
+            && ibz_divides(&deg, &ibz_const_three) == 0 && ibz_divides(&deg, &ibz_const_five) == 0) {
+            break;
+        }
+    }
     ibz_mul(&rhs, &deg, &q);
     ibz_mul(&rhs, &rhs, &TORSION_PLUS_3POWER);
-    ibz_random_unit(&alpha, &TORSION_PLUS_2POWER);
-    ibz_random_unit(&beta, &TORSION_PLUS_2POWER);
+    ibz_random_unit(&alpha, &A);
+    ibz_random_unit(&beta, &A);
     ibz_random_unit(&gamma, &TORSION_PLUS_3POWER);
     ibz_random_unit(&delta, &TORSION_PLUS_5POWER);
 
@@ -79,6 +62,97 @@ int test() {
     represent_integer(&tau, &rhs, &QUATALG_PINFTY);
 
     quat_alg_elem_print(&tau);
+
+    ec_basis_t E0_two, E0_three;
+    copy_point(&E0_two.P, &BASIS_EVEN.P);
+    copy_point(&E0_two.Q, &BASIS_EVEN.Q);
+    copy_point(&E0_two.PmQ, &BASIS_EVEN.PmQ);
+    copy_point(&E0_three.P, &BASIS_THREE.P);
+    copy_point(&E0_three.Q, &BASIS_THREE.Q);
+    copy_point(&E0_three.PmQ, &BASIS_THREE.PmQ);
+
+    endomorphism_application_even_basis(&E0_two, &curve, &tau, TORSION_PLUS_EVEN_POWER);
+    endomorphism_application_even_basis(&E0_three, &curve, &tau, TORSION_PLUS_ODD_POWERS[0]);
+
+    point_print("tau(P2)", E0_two.P);
+    point_print("tau(Q2)", E0_two.Q);
+    point_print("tau(P3)", E0_three.P);
+    point_print("tau(Q3)", E0_three.Q);
+
+    ec_point_t kernel_point;
+    ec_isog_odd_t isog;
+    isog.curve = curve;
+
+    ibz_t three_m1_order, remainder;
+    ibz_init(&three_m1_order);
+    ibz_init(&remainder);
+    ibz_div(&three_m1_order, &remainder, &TORSION_PLUS_3POWER, &ibz_const_three);
+    ec_point_t test_point;
+    ec_mul_ibz(&test_point, &curve, &three_m1_order, &E0_three.P);
+    if (ec_is_zero(&test_point)) {
+        copy_point(&isog.ker_plus, &E0_three.Q);
+    } else {
+        copy_point(&isog.ker_plus, &E0_three.P);
+    }
+
+    ec_mul_ibz(&test_point, &curve, &three_m1_order, &isog.ker_plus);
+    if (ec_is_zero(&test_point)){
+        printf("the order of the kernel point is not 3^m\n");
+        return 1;
+    }
+    
+    isog.degree[0] = TORSION_PLUS_ODD_POWERS[0];
+    ec_curve_t E1;
+
+    ec_eval_odd_basis(&E1, &isog, &E0_two, 2);
+
+    curve_print("Image curve", E1);
+
+    // Evaluating the theta-based 2-dim isogeny
+    theta_couple_curve_t E01;
+    theta_couple_point_t T1, T2, T1m2;
+    theta_chain_t hd_isog;
+
+    E01.E1 = curve; E01.E2 = E1;
+
+    copy_point(&T1.P1, &BASIS_EVEN.P);
+    copy_point(&T2.P1, &BASIS_EVEN.Q);
+    copy_point(&T1m2.P1, &BASIS_EVEN.PmQ);
+    ec_mul_ibz(&T1.P1, &curve, &q, &T1.P1);
+    ec_neg(&T1.P1, &T1.P1);
+    ec_mul_ibz(&T2.P1, &curve, &q, &T2.P1);
+    ec_neg(&T2.P1, &T2.P1);
+    ec_mul_ibz(&T1m2.P1, &curve, &q, &T1m2.P1);
+    ec_neg(&T1m2.P1, &T1m2.P1);
+    ibz_t inverse;
+    ibz_init(&inverse);
+    ibz_invmod(&inverse, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
+
+    ec_mul_ibz(&E0_two.P, &E1, &inverse, &E0_two.P);
+    ec_mul_ibz(&E0_two.Q, &E1, &inverse, &E0_two.Q);
+    ec_mul_ibz(&E0_two.PmQ, &E1, &inverse, &E0_two.PmQ);
+
+    T1.P2 = E0_two.P;
+    T2.P2 = E0_two.Q;
+    T1m2.P2 = E0_two.PmQ;
+    // Check the order of the T1.P2
+    ibz_t two_m1_order;
+    ibz_init(&two_m1_order);
+    ibz_div(&two_m1_order, &remainder, &TORSION_PLUS_2POWER, &ibz_const_two);
+    ec_mul_ibz(&test_point, &curve, &three_m1_order, &T1.P1);
+    if (ec_is_zero(&test_point)){
+        printf("the order of the kernel point is not 3^m\n");
+        return 1;
+    }
+
+    ec_mul_ibz(&test_point, &curve, &three_m1_order, &T1.P2);
+    if (ec_is_zero(&test_point)){
+        printf("the order of the kernel point is not 3^m\n");
+        return 1;
+    }
+
+    theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER-2, &E01, &T1, &T2, &T1m2, strategies[2], 1);
+
     return 0; 
 }
 

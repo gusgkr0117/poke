@@ -65,6 +65,14 @@ const __mpz_struct ibz_const_three[1] = {
      }
 };
 
+const __mpz_struct ibz_const_five[1] = {
+    {
+     ._mp_alloc = 0,
+     ._mp_size = 1,
+     ._mp_d = (mp_limb_t[]){ 5 },
+     }
+};
+
 /* constructors/destructors (possibly no-ops) */
 
 /** @defgroup ibz_t Constructors and Destructors

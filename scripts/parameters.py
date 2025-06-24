@@ -19,7 +19,8 @@ L.remove(2)
 f = (p+1).valuation(2)
 if use_twist == 1 and (p-1).valuation(2) > f:
     raise NotImplementedError('2-power torsion is on twist')
-exp3 = (p-1).valuation(3)
+exp3 = (p+1).valuation(3)
+exp5 = (p+1).valuation(5)
 # if (p-1).valuation(3) > exp3:
     # raise NotImplementedError('3-power torsion is on twist')
 if use_twist == 1 :
@@ -40,5 +41,5 @@ Dcom = (Tpls*Tmin).prime_to_m_part(2)
 Dchall = 2**((p+1).valuation(2))
 # prod(l**(p+1).valuation(l) for l in (2))
 
-__all__ = ['lvl', 'p', 'B', 'use_twist', 'f', 'exp3', 'Tpls', 'Tmin', 'Dcom', 'Dchall']
+__all__ = ['lvl', 'p', 'B', 'use_twist', 'f', 'exp3', 'exp5', 'Tpls', 'Tmin', 'Dcom', 'Dchall']
 

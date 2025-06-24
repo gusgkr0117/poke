@@ -71,6 +71,11 @@ extern const ibz_t ibz_const_two;
  */
 extern const ibz_t ibz_const_three;
 
+/**
+ * Constant five
+ */
+extern const ibz_t ibz_const_five;
+
 /** @}
  */
 

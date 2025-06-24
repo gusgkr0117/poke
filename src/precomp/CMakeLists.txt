@@ -18,7 +18,7 @@ add_custom_command(
         "${CMAKE_CURRENT_SOURCE_DIR}/include/torsion_constants.h"
         # "${CMAKE_CURRENT_SOURCE_DIR}/include/klpt_constants.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/klpt_constants.c"
-        # "${CMAKE_CURRENT_SOURCE_DIR}/include/encoded_sizes.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/encoded_sizes.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/quaternion_data.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/include/quaternion_data.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/endomorphism_action.c"
@@ -44,6 +44,8 @@ add_custom_target(precomp
         "${SAGEMATH}" "${PROJECT_SOURCE_DIR}/scripts/precompute_klpt_constants.sage"
     COMMAND
         "${SAGEMATH}" "${PROJECT_SOURCE_DIR}/scripts/precompute_quaternion_data.sage"
+    COMMAND
+        "${SAGEMATH}" "${PROJECT_SOURCE_DIR}/scripts/precompute_sizes.sage"
     WORKING_DIRECTORY
         "${CMAKE_CURRENT_SOURCE_DIR}"
 )
