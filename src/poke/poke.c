@@ -127,6 +127,69 @@ int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
     return 1;
 }
 
+int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *R, ec_curve_t *E) {
+    return 1;
+}
+
+int eval_dimtwo_isog(theta_chain_t *phi, ec_basis_t *evalPQ, ec_basis_t *PQ, theta_couple_curve_t *E01) {
+    theta_couple_point_t output_points, input_points;
+    ec_point_t imP, imQ, imPQ, imR, imS, imRS;
+
+    input_points.P1 = PQ->P;
+    ec_set_zero(&input_points.P2);
+    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
+    copy_point(&imP, &output_points.P1);
+
+    input_points.P1 = PQ->Q;
+    ec_set_zero(&input_points.P2);
+    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
+    copy_point(&imQ, &output_points.P1);
+
+    input_points.P1 = PQ->PmQ;
+    ec_set_zero(&input_points.P2);
+    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
+    copy_point(&imPQ, &output_points.P1);
+
+    ec_basis_t RS;
+    ec_curve_to_basis_6(&RS, &E01->E2);
+
+    input_points.P2 = RS.P;
+    ec_set_zero(&input_points.P1);
+    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
+    copy_point(&imR, &output_points.P1);
+
+    input_points.P2 = RS.Q;
+    ec_set_zero(&input_points.P1);
+    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
+    copy_point(&imS, &output_points.P1);
+
+    input_points.P2 = RS.PmQ;
+    ec_set_zero(&input_points.P1);
+    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
+    copy_point(&imRS, &output_points.P1);
+
+    ec_basis_t imRS_basis;
+    imRS_basis.P = imR;
+    imRS_basis.Q = imS;
+    imRS_basis.PmQ = imRS;
+    digit_t x[NWORDS_FIELD], y[NWORDS_FIELD];
+    jac_point_t jacR, jacS;
+    jac_point_t evalP, evalQ, evalPmQ;
+    lift_basis(&jacR, &jacS, &RS, &E01->E2);
+
+    ec_dlog_6(x, y, &imRS_basis, &imP, &phi->codomain.E1);
+    DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_FIELD);
+    ec_dlog_6(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
+    DBLMUL_generic(&evalQ, &jacR, x, &jacS, y, &E01->E2, NWORDS_FIELD);
+    ADD(&evalPmQ, &evalP, &evalQ, &E01->E2);
+    
+    jac_to_xz(&evalPQ->P, &evalP);
+    jac_to_xz(&evalPQ->Q, &evalQ);
+    jac_to_xz(&evalPQ->PmQ, &evalPmQ);
+
+    return 1;
+}
+
 int test() {
     ibz_t q, alpha, beta, gamma, delta, rhs, deg;
     ibz_t A, q_bound;
@@ -298,6 +361,28 @@ int test() {
     assert(fp2_is_one(&w0tw1));
 
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &E01, &T1, &T2, &T1m2, strategies[2], 1);
+
+    // Point evaluation via 2-dim isogeny
+    jac_point_t P, Q, R, S, X, Y;
+    lift_basis(&P, &Q, &BASIS_EVEN, &curve);
+    lift_basis(&R, &S, &BASIS_THREE, &curve);
+    lift_basis(&X, &Y, &BASIS_FIVE, &curve);
+
+    // P23x = P + R + X and Q23x = Q + S + Y
+    jac_point_t P23x, Q23x, PmQ23x;
+    ADD(&P23x, &P, &R, &curve);
+    // ADD(&P23x, &P23x, &X, &curve);
+    ADD(&Q23x, &Q, &S, &curve);
+    // ADD(&Q23x, &Q23x, &Y, &curve);
+    ADD(&PmQ23x, &P23x, &Q23x, &curve);
+
+    ec_basis_t eval_points, imPQ23x;
+    jac_to_xz(&eval_points.P, &P23x);
+    jac_to_xz(&eval_points.Q, &Q23x);
+    jac_to_xz(&eval_points.PmQ, &PmQ23x);
+    
+    eval_dimtwo_isog(&hd_isog, &imPQ23x, &eval_points, &E01);
+
 
     ibz_finalize(&inverse);
     ibz_finalize(&three_m1_order);
