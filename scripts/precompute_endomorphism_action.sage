@@ -24,12 +24,8 @@ else:
 
 Fp2.<i> = GF((p,2), modulus=[1,0,1])
 
-if use_twist == 1:
-    Fp4 = Fp2.extension(2,'u')
-    E = EllipticCurve(Fp4, [1,0])
-else:
-    E = EllipticCurve(Fp2, [1,0])
-    E.set_order((p+1)^2)
+E = EllipticCurve(Fp2, [1,0])
+E.set_order((p+1)^2)
 assert E.j_invariant() == 1728
 assert E.is_supersingular()
 assert E.change_ring(Fp2).frobenius() == -p
@@ -55,12 +51,16 @@ def half_endo(summands):
         E = P.curve()
         assert P in E
         F = E.base_field()
-        if (halves := P.division_points(2)):
-            Q = halves[0]
-        else:
-            Q = E.change_ring(F.extension(2,'v'))(P)
-        R = sum(endo._eval(Q) for endo in summands)
-        return E(R)
+        # if (halves := P.division_points(2)):
+        #     Q = halves[0]
+        # else:
+        #     Q = E.change_ring(F.extension(2,'v'))(P)
+        # R = sum(endo._eval(Q) for endo in summands)
+        # return E(R)
+        R = sum(endo._eval(P) for endo in summands)
+        Q = R.division_points(2)[0]
+        return Q
+        
     return _eval
 
 gen1 = endo_1._eval
@@ -71,40 +71,41 @@ gen4 = half_endo([endo_1, endo_k])
 ################################################################
 
 from sage.groups.generic import order_from_multiple
-# x = Fp4.gen() if use_twist == 1 else Fp2.gen()
-# while True:
-#     x += 1
-#     try:
-#         P = E.lift_x(x)
-#     except ValueError:
-#         continue
-#     o = order_from_multiple(P, p^2-1, plist) if use_twist == 1 else order_from_multiple(P, (p+1), plist)
-#     if (T<<f).divides(o):
-#         P *= o // (T<<f)
-#         P.set_order(T<<f)
-#         break
-# assert P.order() == p+1
-# x = Fp4.gen() if use_twist == 1 else Fp2.gen()
-# while True:
-#     x += 1
-#     try:
-#         Q = E.lift_x(x)
-#     except ValueError:
-#         continue
-#     o = order_from_multiple(Q, p^2-1, plist) if use_twist == 1 else order_from_multiple(Q, (p+1), plist)
-#     if not (T<<f).divides(o):
-#         continue
-#     Q *= o // (T<<f)
-#     assert (T<<f) == p+1
-#     assert Q.order() == p+1
-#     e = order_from_multiple(P.weil_pairing(Q, p+1), p+1, operation='*')
-#     if e == p+1:
-#         break
-#     print((p+1) // e)
-P, Q = E.gens()
+x = Fp2.gen()
+while True:
+    x += 1
+    try:
+        P = E.lift_x(x)
+    except ValueError:
+        continue
+    o = order_from_multiple(P, (p+1), plist)
+    if o == p+1:
+        break
 assert P.order() == p+1
-assert Q.order() == p+1
-assert order_from_multiple(P.weil_pairing(Q, p+1), p+1, operation='*') == p+1
+
+## 중요 : x가 -i 이어야만 해를 찾을 수 있음!
+x = -Fp2.gen()
+while True:
+    x += 1
+    try:
+        Q = E.lift_x(x)
+    except ValueError:
+        continue
+    o = order_from_multiple(Q, (p+1), plist)
+    if o != p+1:
+        continue
+    # print(o//(T<<f))
+    # Q *= o // (T<<f)
+    assert (T<<f) == p+1
+    assert Q.order() == p+1
+    e = order_from_multiple(P.weil_pairing(Q, p+1), p+1, operation='*')
+    if e == p+1:
+        break
+    print((p+1) // e)
+# P, Q = E.gens()
+# assert P.order() == p+1
+# assert Q.order() == p+1
+# assert order_from_multiple(P.weil_pairing(Q, p+1), p+1, operation='*') == p+1
 
 def dlp(P, Q, R):
     n = P.order()
