@@ -993,7 +993,7 @@ ec_dlog_2_step(digit_t *x,
     *x = 0;
     *y = 0;
 
-    printf(" ec_dlog_2_step on size %d \n", f);
+    // printf(" ec_dlog_2_step on size %d \n", f);
 
     copy_jac_point(&P, &Pe2[f - 1]);
     copy_jac_point(&Q, &Qe2[f - 1]);
@@ -1112,7 +1112,7 @@ ec_dlog_2(digit_t *scalarP,
           const ec_curve_t *curve)
 { // Optimized implementation based on Montgomery formulas using Jacobian coordinates
 
-    printf(" ec_dlog_2 %d %d %d\n", POWER_OF_2, NWORDS_ORDER, RADIX);
+    // printf(" ec_dlog_2 %d %d %d\n", POWER_OF_2, NWORDS_ORDER, RADIX);
 
     int i;
     digit_t w0 = 0, z0 = 0, x0 = 0, y0 = 0, x1 = 0, y1 = 0, w1 = 0, z1 = 0, e, e1, f, f1, f2,

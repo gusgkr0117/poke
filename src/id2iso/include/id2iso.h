@@ -122,6 +122,9 @@ void ec_mul_ibz(ec_point_t *res,
 // helper function to apply some 2x2 matrix on a basis of E[2^TORSION_PLUS_EVEN_POWER]
 // works in place
 void matrix_application_even_basis(ec_basis_t *P, const ec_curve_t *E, ibz_mat_2x2_t *mat, int f);
+// helper function to apply some 2x2 matrix on a basis of E[3^TORSION_PLUS_ODD_POWER[0]]
+// works in place
+void matrix_application_three_basis(ec_basis_t *bas, ec_curve_t *E, ibz_mat_2x2_t *mat, int f);
 // helper function to apply some endomorphism of E on a basis of E[2^TORSION_PLUS_EVEN_POWER]
 // works in place
 void endomorphism_application_even_basis(ec_basis_t *P,
@@ -133,7 +136,12 @@ void endomorphism_application_even_jac_basis(jac_point_t *P,
                                              jac_point_t *Q,
                                              quat_alg_elem_t *theta,
                                              int f);
-
+// helper function to apply some endomorphism of E0 on the precomputed basis of E[3^f]
+// works in place
+void endomorphism_application_three_basis(ec_basis_t *bas,
+                                            ec_curve_t *E,
+                                            quat_alg_elem_t *theta,
+                                            int f);
 /**
  * @brief Translating a kernel on the curve E0, represented as two vectors with respect to the
  * precomputed 2^f- and 3^e-torsion bases, into the corresponding O0-ideal

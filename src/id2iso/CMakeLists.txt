@@ -9,3 +9,5 @@ target_compile_options(lib_id2iso PRIVATE ${C_OPT_FLAGS})
 
 include(${SELECT_IMPL_TYPE})
 include(${SELECT_POKE_VARIANT})
+
+add_subdirectory(test)
