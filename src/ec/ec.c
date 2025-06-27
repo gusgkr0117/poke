@@ -1277,8 +1277,8 @@ ec_dlog_2(digit_t *scalarP,
     } else {
         x0_p[0] = 0;
         y0_p[0] = 0;
-        x0_p[1] = 0x100;
-        y0_p[1] = 0x100;
+        x0_p[1] = 0x1;  // [Hotfix] Don't know why..
+        y0_p[1] = 0x1;  // [Hotfix] Don't know why..
         mp_mul2(&xx[0], &xx[0], &x0_p[0]);
         mp_mul2(&yy[0], &yy[0], &y0_p[0]);
     }
