@@ -24,6 +24,7 @@ void swap_ct(digit_t *a, digit_t *b, const digit_t option, const int nwords);
 int mp_compare(digit_t *a, digit_t *b, unsigned int nwords);
 bool mp_is_zero(const digit_t *a, unsigned int nwords);
 void mp_mul2(digit_t *c, const digit_t *a, const digit_t *b);
+void mp_mul_generic(digit_t *c, const digit_t *a, const digit_t b, unsigned int nwords);
 
 /********************** Constant-time unsigned comparisons ***********************/
 

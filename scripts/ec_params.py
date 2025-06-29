@@ -204,6 +204,12 @@ if __name__ == '__main__':
     number_strategy_4_isog = POWER_OF_2//2+10
     number_strategy_dim2_isog = POWER_OF_2//2+10
 
+    # For Dlog_3
+    THREEe = 0
+    THREEpE = 1
+    while THREEpE * 3 < 2**64:
+        THREEpE *= 3
+        THREEe += 1
 
     f = open('include/ec_params.h', 'w')
     print("computing ec_params.h")
@@ -214,10 +220,11 @@ if __name__ == '__main__':
     f.write('\n')
     f.write(f'#define POWER_OF_2 {POWER_OF_2}\n')
     f.write(f'#define POWER_OF_3 {POWER_OF_3}\n')
+    f.write(f'#define THREEe {THREEe}\n')
     f.write('\n')
     f.write(f'static digit_t TWOpF[NWORDS_ORDER] = {fp2str(2**POWER_OF_2, p)}; // Fp representation for the power of 2\n')
     f.write(f'static digit_t TWOpFm1[NWORDS_ORDER] = {fp2str(2**(POWER_OF_2-1), p)}; // Fp representation for half the power of 2\n')
-    f.write(f'static digit_t THREEpE[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3//2), p)}; // Approximate squareroot of the power of 3\n')
+    f.write(f'static digit_t THREEpE[NWORDS_ORDER] = {fp2str(THREEpE, p)}; // THREEpE = 3^THREEe < 2^64\n')
     f.write(f'static digit_t THREEpF[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3), p)}; // Fp representation for the power of 3\n')
     f.write(f'static digit_t THREEpFdiv2[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3)//2, p)}; // Floor of half the power of 3\n')
     f.write('\n')

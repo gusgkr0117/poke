@@ -67,10 +67,10 @@ int dlog_3_test() {
     digit_t x[NWORDS_ORDER] = {0}, y[NWORDS_ORDER] = {0};
     ibz_init(&a); ibz_init(&b);
     ibz_init(&c); ibz_init(&d);
-    // ibz_rand_interval(&a, &ibz_const_zero, &TORSION_PLUS_3POWER);
-    // ibz_rand_interval(&b, &ibz_const_zero, &TORSION_PLUS_3POWER);
-    ibz_set(&a, 1);
-    ibz_set(&b, 1);
+    ibz_rand_interval(&a, &ibz_const_zero, &TORSION_PLUS_3POWER);
+    ibz_rand_interval(&b, &ibz_const_zero, &TORSION_PLUS_3POWER);
+    // ibz_set(&a, 1);
+    // ibz_set(&b, 1);
 
     ibz_to_digits(x, &a);
     ibz_to_digits(y, &b);

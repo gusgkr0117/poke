@@ -9,7 +9,7 @@ include(${SELECT_IMPL_TYPE})
 include(${SELECT_POKE_VARIANT})
 
 add_library(lib_precomp ${SOURCE_FILES_PRECOMP})
-target_include_directories(lib_precomp PRIVATE ${INC_EC} ${INC_COMMON} ${INC_INTBIG} ${INC_QUATERNION} ${PROJECT_SOURCE_DIR}/src/gf/include include)
+target_include_directories(lib_precomp PRIVATE include ${INC_EC} ${INC_COMMON} ${INC_INTBIG} ${INC_QUATERNION} ${PROJECT_SOURCE_DIR}/src/gf/include)
 
 add_custom_command(
     OUTPUT

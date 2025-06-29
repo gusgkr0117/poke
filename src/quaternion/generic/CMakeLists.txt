@@ -1,14 +1,14 @@
 set(SOURCE_FILES_QUATERNION_GENERIC_REF
     algebra.c
-    # ideal.c
+    ideal.c
     dim4.c
-    # dim2.c
+    dim2.c
     integers.c
     lattice.c
     finit.c
     printer.c
-    # lll.c
-    # matkermod.c
+    lll.c
+    matkermod.c
 )
 
 add_library(lib_quaternion ${SOURCE_FILES_QUATERNION_GENERIC_REF})

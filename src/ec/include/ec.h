@@ -394,6 +394,7 @@ void ec_dlog_3(digit_t *scalarP,
                const ec_basis_t *PQ3,
                const ec_point_t *R,
                const ec_curve_t *curve);
+
 /** @}
  */
 
