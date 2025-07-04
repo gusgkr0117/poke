@@ -52,10 +52,7 @@ int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *
     ec_dlog_3(scalarP3, scalarQ3, &three_base, &R3, E);
     ec_point_t test_point;
     xDBLMUL(&test_point, &three_base.P, scalarP3, &three_base.Q, scalarQ3, &three_base.PmQ, E);
-    if (!ec_is_equal(&test_point, &R3)) {
-        printf("ec_dlog_3 fails\n");
-        return 0;
-    }
+    assert(ec_is_equal(&test_point, &R3));
 
     copy_point(&R2, R);
     copy_point(&two_base.P, &base->P);
@@ -70,10 +67,7 @@ int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *
 
     ec_dlog_2(scalarP2, scalarQ2, &two_base, &R2, E);
     xDBLMUL(&test_point, &two_base.P, scalarP2, &two_base.Q, scalarQ2, &two_base.PmQ, E);
-    if (!ec_is_equal(&test_point, &R2)) {
-        printf("ec_dlog_2 fails\n");
-        return 0;
-    }
+    assert(ec_is_equal(&test_point, &R2));
 
     // Chinese Remainder Theorem
     ibz_copy_digits(&iP3, scalarP3, NWORDS_ORDER);
@@ -86,36 +80,22 @@ int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *
     ibz_to_digits(scalarP, &iP3);
     ibz_to_digits(scalarQ, &iQ3);
 
-    // ibz_invmod(&t1, &TORSION_PLUS_2POWER, &TORSION_PLUS_3POWER);
-    // ibz_invmod(&t2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
-    // ibz_mul(&t3, &TORSION_PLUS_2POWER, &TORSION_PLUS_3POWER);
-
-    // // Compute scalarP
-    // ibz_mul(&iP3, &iP3, &t1);
-    // ibz_mul(&iP3, &iP3, &TORSION_PLUS_2POWER);
-    // ibz_mod(&iP3, &iP3, &t3);
-
-    // ibz_mul(&iP2, &iP2, &t2);
-    // ibz_mul(&iP2, &iP2, &TORSION_PLUS_3POWER);
-    // ibz_mod(&iP2, &iP2, &t3);
-
-    // ibz_add(&iP3, &iP3, &iP2);
-    // ibz_mod(&iP3, &iP3, &t3);
-    // ibz_to_digits(scalarP, &iP3);
-
-
-    // // Compute scalarQ
-    // ibz_mul(&iQ3, &iQ3, &t1);
-    // ibz_mul(&iQ3, &iQ3, &TORSION_PLUS_2POWER);
-    // ibz_mod(&iQ3, &iQ3, &t3);
-
-    // ibz_mul(&iQ2, &iQ2, &t2);
-    // ibz_mul(&iQ2, &iQ2, &TORSION_PLUS_3POWER);
-    // ibz_mod(&iQ2, &iQ2, &t3);
-
-    // ibz_add(&iQ3, &iQ3, &iQ2);
-    // ibz_mod(&iQ3, &iQ3, &t3);
-    // ibz_to_digits(scalarQ, &iQ3);
+    xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    if(!ec_is_equal(&test_point, R)){
+        ibz_copy_digits(&iP3, scalarP3, NWORDS_ORDER);
+        ibz_copy_digits(&iQ3, scalarQ3, NWORDS_ORDER);
+        ibz_mod(&iP3, &iP3, &TORSION_PLUS_3POWER);
+        ibz_sub(&iP3, &TORSION_PLUS_3POWER, &iP3);
+        ibz_mod(&iQ3, &iQ3, &TORSION_PLUS_3POWER);
+        ibz_sub(&iQ3, &TORSION_PLUS_3POWER, &iQ3);
+        ibz_crt(&iP3, &iP3, &iP2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
+        ibz_crt(&iQ3, &iQ3, &iQ2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
+        ibz_to_digits(scalarP, &iP3);
+        ibz_to_digits(scalarQ, &iQ3);
+    }
+    // Test if the computed scalars are correct
+    xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    assert(ec_is_equal(&test_point, R));
 
     ibz_finalize(&t1);
     ibz_finalize(&t2);
@@ -259,18 +239,6 @@ int test() {
     copy_point(&E0_three.Q, &BASIS_THREE.Q);
     copy_point(&E0_three.PmQ, &BASIS_THREE.PmQ);
 
-    // point_print("P2", E0_two.P);
-    // point_print("Q2", E0_two.Q);
-    // point_print("P3", E0_three.P);
-    // point_print("Q3", E0_three.Q);
-
-    // ibz_set(&(tau.coord[0]), 0);
-    // ibz_set(&(tau.coord[1]), 0);
-    // ibz_set(&(tau.coord[2]), 1);
-    // ibz_set(&(tau.coord[3]), 0);
-
-    // ibz_set(&(tau.denom), 1);
-
     endomorphism_application_three_basis(&E0_three, &curve, &tau, TORSION_PLUS_ODD_POWERS[0]);
     endomorphism_application_even_basis(&E0_two, &curve, &tau, TORSION_PLUS_EVEN_POWER);
 
@@ -345,7 +313,6 @@ int test() {
     copy_point(&AC, &CURVE_E0_A24);
     A24_from_AC(&A24, &AC);
     weil(&w0, TORSION_PLUS_EVEN_POWER, &T1.P1, &T2.P1, &T1m2.P1, &A24);
-    fp2_print("e(P,Q) : ", &w0);
 
     ibz_t inverse;
     ibz_init(&inverse);
@@ -362,12 +329,11 @@ int test() {
     ec_curve_normalize_A24(&E1);
     copy_point(&A24, &E1.A24);
     weil(&w1, TORSION_PLUS_EVEN_POWER, &T1.P2, &T2.P2, &T1m2.P2, &A24);
-    fp2_print("e(phi(P),phi(Q)) : ", &w1);
+
     fp2_mul(&w0tw1, &w0, &w1);
     fp2_mul(&w0tw1, &w0tw1, &w0tw1);
     fp2_mul(&w0tw1, &w0tw1, &w0tw1);
 
-    fp2_print("(e(P, Q) x e(phi(P),phi(Q)))^4 = ", &w0tw1);
     assert(fp2_is_one(&w0tw1));
 
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &E01, &T1, &T2, &T1m2, strategies[2], 1);
@@ -400,6 +366,7 @@ int test() {
     
     eval_dimtwo_isog(&hd_isog, &imPQ23x, &eval_points, &E01);
 
+    printf("Succeed\n");
 
     ibz_finalize(&inverse);
     ibz_finalize(&three_m1_order);

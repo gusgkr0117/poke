@@ -351,9 +351,6 @@ matrix_application_three_basis(ec_basis_t *bas, ec_curve_t *E, ibz_mat_2x2_t *ma
     ibz_mod(&(*mat)[1][0], &(*mat)[1][0], &pow_three);
     ibz_mod(&(*mat)[1][1], &(*mat)[1][1], &pow_three);
 
-    
-    ibz_mat_2x2_print(mat);
-
     jac_point_t P, Q, R;
     
 
@@ -493,20 +490,10 @@ endomorphism_application_even_jac_basis(jac_point_t *P,
     ibz_to_digit_array(scalars[0], &mat[0][0]);
     ibz_to_digit_array(scalars[1], &mat[1][0]);
     DBLMUL_generic(P, &tmp1, scalars[0], &tmp2, scalars[1], &CURVE_E0, NWORDS_ORDER);
-    // ec_biscalar_mul(&bas->P,&CURVE_E0,scalars[0],scalars[1],&tmp_bas);
 
     ibz_to_digit_array(scalars[0], &mat[0][1]);
     ibz_to_digit_array(scalars[1], &mat[1][1]);
     DBLMUL_generic(Q, &tmp1, scalars[0], &tmp2, scalars[1], &CURVE_E0, NWORDS_ORDER);
-    // ec_biscalar_mul(&bas->Q,&CURVE_E0,scalars[0],scalars[1],&tmp_bas);
-
-    // ibz_sub(&tmp,&mat[0][0],&mat[0][1]);
-    // ibz_mod(&tmp,&tmp,&twopow);
-    // ibz_to_digit_array(scalars[0],&tmp);
-    // ibz_sub(&tmp,&mat[1][0],&mat[1][1]);
-    // ibz_mod(&tmp,&tmp,&twopow);
-    // ibz_to_digit_array(scalars[1],&tmp);
-    // ec_biscalar_mul(&bas->PmQ,&CURVE_E0,scalars[0],scalars[1],&tmp_bas);
 
     ibz_finalize(&tmp);
     ibz_vec_4_finalize(&coeffs);
