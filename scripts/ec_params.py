@@ -212,6 +212,13 @@ if __name__ == '__main__':
         THREEpE *= 3
         THREEe += 1
 
+    # For Dlog_5
+    FIVEe = 0
+    FIVEpE = 1
+    while FIVEpE * 5 < 2**64:
+        FIVEpE *= 5
+        FIVEe += 1
+
     f = open('include/ec_params.h', 'w')
     print("computing ec_params.h")
     f.write('#ifndef EC_PARAMS_H\n')
@@ -223,12 +230,16 @@ if __name__ == '__main__':
     f.write(f'#define POWER_OF_3 {POWER_OF_3}\n')
     f.write(f'#define POWER_OF_5 {POWER_OF_5}\n')
     f.write(f'#define THREEe {THREEe}\n')
+    f.write(f'#define FIVEe {FIVEe}\n')
     f.write('\n')
     f.write(f'static digit_t TWOpF[NWORDS_ORDER] = {fp2str(2**POWER_OF_2, p)}; // Fp representation for the power of 2\n')
     f.write(f'static digit_t TWOpFm1[NWORDS_ORDER] = {fp2str(2**(POWER_OF_2-1), p)}; // Fp representation for half the power of 2\n')
     f.write(f'static digit_t THREEpE[NWORDS_ORDER] = {fp2str(THREEpE, p)}; // THREEpE = 3^THREEe < 2^64\n')
     f.write(f'static digit_t THREEpF[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3), p)}; // Fp representation for the power of 3\n')
+    f.write(f'static digit_t FIVEpE[NWORDS_ORDER] = {fp2str(FIVEpE, p)}; // FIVEpE = 5^FIVEe < 2^64\n')
+    f.write(f'static digit_t FIVEpF[NWORDS_ORDER] = {fp2str(5**(POWER_OF_5), p)}; // Fp representation for the power of 5\n')
     f.write(f'static digit_t THREEpFdiv2[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3)//2, p)}; // Floor of half the power of 3\n')
+    f.write(f'static digit_t FIVEpFdiv2[NWORDS_ORDER] = {fp2str(5**(POWER_OF_5)//2, p)}; // Floor of half the power of 5\n')
     f.write('\n')
     f.write('#define scaled 1 // unscaled (0) or scaled (1) remainder tree approach for squareroot velu\n')
     f.write('#define gap 83 // Degree above which we use squareroot velu reather than traditional\n')

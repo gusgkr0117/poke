@@ -110,8 +110,8 @@ int dlog_5_test() {
     ibz_init(&c); ibz_init(&d);
     ibz_rand_interval(&a, &ibz_const_zero, &TORSION_PLUS_5POWER);
     ibz_rand_interval(&b, &ibz_const_zero, &TORSION_PLUS_5POWER);
-    // ibz_set(&a, 1);
-    // ibz_set(&b, 1);
+    ibz_set(&a, 0xbcdef1);
+    ibz_set(&b, 0xabcdef);
 
     ibz_to_digits(x, &a);
     ibz_to_digits(y, &b);
