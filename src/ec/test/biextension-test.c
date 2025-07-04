@@ -101,6 +101,47 @@ int dlog_3_test() {
     return 0;
 }
 
+int dlog_5_test() {
+    ec_curve_t E0 = CURVE_E0;
+    ec_basis_t five_basis = BASIS_FIVE;
+    ibz_t a, b, c, d;
+    digit_t x[NWORDS_ORDER] = {0}, y[NWORDS_ORDER] = {0};
+    ibz_init(&a); ibz_init(&b);
+    ibz_init(&c); ibz_init(&d);
+    ibz_rand_interval(&a, &ibz_const_zero, &TORSION_PLUS_5POWER);
+    ibz_rand_interval(&b, &ibz_const_zero, &TORSION_PLUS_5POWER);
+    // ibz_set(&a, 1);
+    // ibz_set(&b, 1);
+
+    ibz_to_digits(x, &a);
+    ibz_to_digits(y, &b);
+
+    ibz_copy_digits(&a, x, NWORDS_ORDER);
+    ibz_copy_digits(&b, y, NWORDS_ORDER);
+
+    ec_point_t R = {0}, S = {0};
+    digit_t z[NWORDS_ORDER] = {0}, w[NWORDS_ORDER] = {0};
+    ec_biscalar_mul(&R, &E0, x, y, &five_basis);
+
+    ec_dlog_5(z ,w, &five_basis, &R, &E0);
+    ec_biscalar_mul(&S, &E0, z, w, &five_basis);
+    
+    if (!is_point_equal(&S, &R)) {
+        // point_print("R : ", R);
+        // point_print("S : ", S);
+        ibz_copy_digits(&c, z, NWORDS_ORDER);
+        ibz_copy_digits(&d, w, NWORDS_ORDER);
+        gmp_printf("x, y: %Zx, %Zx\n", a, b);
+        gmp_printf("z, w: %Zx, %Zx\n", c, d);
+
+        printf("dlog_5_test failed\n");
+        return 1;
+    }
+
+    ibz_finalize(&a); ibz_finalize(&b);
+    return 0;
+}
+
 int main (int argc, char* argv[]) {
     int test_num = 1;
     if (argc > 1) {
@@ -113,6 +154,11 @@ int main (int argc, char* argv[]) {
 
     for (int i = 0; i < test_num; i++){
         if (dlog_3_test())
+            return 1;
+    }
+
+    for (int i = 0; i < test_num; i++){
+        if (dlog_5_test())
             return 1;
     }
     return 0;

@@ -1639,130 +1639,6 @@ ec_dlog_3_step(digit_t *x,
     }
 }
 
-// void
-// ec_dlog_3(digit_t *scalarP,
-//           digit_t *scalarQ,
-//           const ec_basis_t *PQ3,
-//           const ec_point_t *R,
-//           const ec_curve_t *curve)
-// { // Optimized implementation based on Montgomery formulas using Jacobian coordinates
-//     int i;
-//     digit_t w0 = 0, z0 = 0, x0 = 0, y0 = 0, x1 = 0, y1 = 0, w1 = 0, z1 = 0, e, f, f1, f1div2;
-//     digit_t fp2[NWORDS_ORDER] = { 0 }, xx[NWORDS_ORDER] = { 0 }, yy[NWORDS_ORDER] = { 0 },
-//             ww[NWORDS_ORDER] = { 0 }, zz[NWORDS_ORDER] = { 0 };
-//     jac_point_t P, Q, RR, TT, R2r0;
-//     jac_point_t Pe3[POWER_OF_3], Qe3[POWER_OF_3], PQe3[POWER_OF_3];
-//     ec_point_t Rnorm;
-//     ec_curve_t curvenorm;
-//     ec_basis_t PQ3norm;
-
-//     ec_curve_init(&curvenorm);
-
-//     f = POWER_OF_3;
-//     memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
-//     memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
-
-//     // Normalize R,PQ3,curve
-//     fp2_t D;
-//     fp2_mul(&D, &PQ3->P.z, &PQ3->Q.z);
-//     fp2_mul(&D, &D, &PQ3->PmQ.z);
-//     fp2_mul(&D, &D, &R->z);
-//     fp2_mul(&D, &D, &curve->C);
-//     fp2_inv(&D);
-//     fp2_set_one(&Rnorm.z);
-//     fp2_copy(&PQ3norm.P.z, &Rnorm.z);
-//     fp2_copy(&PQ3norm.Q.z, &Rnorm.z);
-//     fp2_copy(&PQ3norm.PmQ.z, &Rnorm.z);
-//     fp2_copy(&curvenorm.C, &Rnorm.z);
-//     fp2_mul(&Rnorm.x, &R->x, &D);
-//     fp2_mul(&Rnorm.x, &Rnorm.x, &PQ3->P.z);
-//     fp2_mul(&Rnorm.x, &Rnorm.x, &PQ3->Q.z);
-//     fp2_mul(&Rnorm.x, &Rnorm.x, &PQ3->PmQ.z);
-//     fp2_mul(&Rnorm.x, &Rnorm.x, &curve->C);
-//     fp2_mul(&PQ3norm.P.x, &PQ3->P.x, &D);
-//     fp2_mul(&PQ3norm.P.x, &PQ3norm.P.x, &R->z);
-//     fp2_mul(&PQ3norm.P.x, &PQ3norm.P.x, &PQ3->Q.z);
-//     fp2_mul(&PQ3norm.P.x, &PQ3norm.P.x, &PQ3->PmQ.z);
-//     fp2_mul(&PQ3norm.P.x, &PQ3norm.P.x, &curve->C);
-//     fp2_mul(&PQ3norm.Q.x, &PQ3->Q.x, &D);
-//     fp2_mul(&PQ3norm.Q.x, &PQ3norm.Q.x, &R->z);
-//     fp2_mul(&PQ3norm.Q.x, &PQ3norm.Q.x, &PQ3->P.z);
-//     fp2_mul(&PQ3norm.Q.x, &PQ3norm.Q.x, &PQ3->PmQ.z);
-//     fp2_mul(&PQ3norm.Q.x, &PQ3norm.Q.x, &curve->C);
-//     fp2_mul(&PQ3norm.PmQ.x, &PQ3->PmQ.x, &D);
-//     fp2_mul(&PQ3norm.PmQ.x, &PQ3norm.PmQ.x, &R->z);
-//     fp2_mul(&PQ3norm.PmQ.x, &PQ3norm.PmQ.x, &PQ3->P.z);
-//     fp2_mul(&PQ3norm.PmQ.x, &PQ3norm.PmQ.x, &PQ3->Q.z);
-//     fp2_mul(&PQ3norm.PmQ.x, &PQ3norm.PmQ.x, &curve->C);
-//     fp2_mul(&curvenorm.A, &curve->A, &D);
-//     fp2_mul(&curvenorm.A, &curvenorm.A, &R->z);
-//     fp2_mul(&curvenorm.A, &curvenorm.A, &PQ3->P.z);
-//     fp2_mul(&curvenorm.A, &curvenorm.A, &PQ3->Q.z);
-//     fp2_mul(&curvenorm.A, &curvenorm.A, &PQ3->PmQ.z);
-
-//     recover_y(&P.y, &PQ3norm.P.x, &curvenorm);
-//     fp2_copy(&P.x, &PQ3norm.P.x);
-//     fp2_copy(&P.z, &PQ3norm.P.z);
-//     recover_y(&Q.y, &PQ3norm.Q.x, &curvenorm); // TODO: THIS SECOND SQRT CAN BE ELIMINATED
-//     fp2_copy(&Q.x, &PQ3norm.Q.x);
-//     fp2_copy(&Q.z, &PQ3norm.Q.z);
-//     recover_y(&RR.y, &Rnorm.x, &curvenorm);
-//     fp2_copy(&RR.x, &Rnorm.x);
-//     fp2_copy(&RR.z, &Rnorm.z);
-
-//     jac_neg(&TT, &Q);
-//     ADD(&TT, &P, &TT, &curvenorm);
-//     if (!is_jac_xz_equal(&TT, &PQ3norm.PmQ))
-//         jac_neg(&Q, &Q);
-
-//     // Computing torsion-2^f points, multiples of P, Q and P+Q
-//     copy_jac_point(&Pe3[POWER_OF_3 - 1], &P);
-//     copy_jac_point(&Qe3[POWER_OF_3 - 1], &Q);
-//     ADD(&PQe3[POWER_OF_3 - 1], &P, &Q, &curvenorm); // P+Q
-
-//     for (i = 0; i < (POWER_OF_3 - 1); i++) {
-//         TPL(&Pe3[POWER_OF_3 - i - 2], &Pe3[POWER_OF_3 - i - 1], &curvenorm);
-//         TPL(&Qe3[POWER_OF_3 - i - 2], &Qe3[POWER_OF_3 - i - 1], &curvenorm);
-//         TPL(&PQe3[POWER_OF_3 - i - 2], &PQe3[POWER_OF_3 - i - 1], &curvenorm);
-//     }
-
-//     e = f >> 1;
-//     f1 = f - e;
-//     copy_jac_point(&TT, &RR);
-//     for (i = 0; i < (f - f1); i++) {
-//         TPL(&TT, &TT, &curvenorm);
-//     }
-//     // w0, z0 <- dlog3(3^(f-f1)*R, f1, f1 div 2)
-//     f1div2 = f1 >> 1;
-//     ec_dlog_3_step(&w0, &z0, &TT, (int)f1, (int)f1div2, &Pe3[0], &Qe3[0], &PQe3[0], &curvenorm);
-
-//     // R2r0 <- R2 - (w0*Pe3[f-1] + z0*Qe3[f-1])
-//     DBLMUL(&R2r0, &Pe3[f - 1], w0, &Qe3[f - 1], z0, &curvenorm);
-//     jac_neg(&R2r0, &R2r0);
-//     ADD(&R2r0, &RR, &R2r0, &curvenorm);
-//     ec_dlog_3_step(&x0, &y0, &R2r0, (int)e, (int)f1div2, &Pe3[0], &Qe3[0], &PQe3[0], &curvenorm);
-
-//     xx[0] = x0;
-//     yy[0] = y0;
-//     ww[0] = w0;
-//     zz[0] = z0;
-//     mp_mul2(&xx[0], THREEpE, &xx[0]);
-//     mp_add(scalarP, &xx[0], &ww[0], NWORDS_ORDER);
-//     mp_mul2(&yy[0], THREEpE, &yy[0]);
-//     mp_add(scalarQ, &yy[0], &zz[0], NWORDS_ORDER);
-
-//     // If scalarP > Floor(3^f/2) or (scalarQ > Floor(3^f/2) and scalarP = 0) then output -scalarP
-//     // mod 3^f, -scalarQ mod 3^f
-//     if (mp_compare(scalarP, THREEpFdiv2, NWORDS_ORDER) == 1 ||
-//         (mp_compare(scalarQ, THREEpFdiv2, NWORDS_ORDER) == 1 &&
-//          (mp_is_zero(scalarP, NWORDS_ORDER) == 1))) {
-//         if (mp_is_zero(scalarP, NWORDS_ORDER) != 1)
-//             mp_sub(scalarP, THREEpF, scalarP, NWORDS_ORDER);
-//         if (mp_is_zero(scalarQ, NWORDS_ORDER) != 1)
-//             mp_sub(scalarQ, THREEpF, scalarQ, NWORDS_ORDER);
-//     }
-// }
-
 void
 ec_dlog_3(digit_t *scalarP,
           digit_t *scalarQ,
@@ -1914,6 +1790,475 @@ ec_dlog_3(digit_t *scalarP,
         if (mp_is_zero(scalarQ, NWORDS_ORDER) != 1)
             mp_sub(scalarQ, THREEpF, scalarQ, NWORDS_ORDER);
     }
+}
+
+static void
+ec_dlog_5_step(digit_t *x,
+               digit_t *y,
+               const jac_point_t *R,
+               const int f,
+               const int B,
+               const jac_point_t *Pe5,
+               const jac_point_t *Qe5,
+               const jac_point_t *PQe5,
+               const ec_curve_t *curve)
+{ // Based on Montgomery formulas using Jacobian coordinates
+    int i, j;
+    digit_t value = 1;
+    jac_point_t P, Q, PQp, PQ2p, P2Qp, P2Q2p, P2p, Q2p, TT, SS, Te[POWER_OF_5 / 2],
+        Re[POWER_OF_5 / 2]; // Storage could be reduced to e points
+    jac_point_t PQep0[5][5] ,PQxy[5][5], PQep1[5][5];
+    // jac_point_t PQep0, PQ2ep0, P2Qep0, P2Q2ep0, P2ep0, Q2ep0, PQep1, PQ2ep1, P2Qep1, P2Q2ep1, P2ep1,
+    //     Q2ep1;
+
+    *x = 0;
+    *y = 0;
+
+    copy_jac_point(&P, &Pe5[f - 1]);
+    copy_jac_point(&Q, &Qe5[f - 1]);
+    copy_jac_point(&Re[f - 1], R);
+
+    for (i = 0; i < (f - 1); i++) {
+        ec_mul(&Re[f - i - 2], curve, 5, &Re[f - i - 1]);
+    }
+
+    ec_set_zero(&PQxy[0][0]);
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            jac_init(&PQxy[i][j]);
+            if (i > 0) {
+                ADD(&PQxy[i][j], &PQxy[i - 1][j], &P, curve);
+            } else if (j > 0) {
+                ADD(&PQxy[i][j], &PQxy[i][j - 1], &Q, curve);
+            }
+        }
+    }
+
+    ec_set_zero(&PQep0[0][0]);
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            jac_init(&PQep0[i][j]);
+            if (i > 0) {
+                ADD(&PQep0[i][j], &PQep0[i - 1][j], &Pe5[0], curve);
+            } else if (j > 0) {
+                ADD(&PQep0[i][j], &PQep0[i][j - 1], &Qe5[0], curve);
+            }
+        }
+    }
+
+    ec_set_zero(&PQep1[0][0]);
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            jac_init(&PQep1[i][j]);
+            if (i > 0) {
+                ADD(&PQep1[i][j], &PQep1[i - 1][j], &Pe5[1], curve);
+            } else if (j > 0) {
+                ADD(&PQep1[i][j], &PQep1[i][j - 1], &Qe5[1], curve);
+            }
+        }
+    }
+
+    bool chk = false;
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            if (is_jac_equal(&PQep0[i][j], &Re[0])) {
+                *x += i;
+                *y += j;
+                copy_jac_point(&Te[0], &PQxy[i][j]);
+                for (int k = 3; k <= B; k++) {
+                    if(i + j != 0) {
+                        digit_t x = i, y = j;
+                        DBLMUL_generic(&Te[k - 1], &Pe5[k - 1], &x, &Qe5[k - 1], &y, curve, 1);
+                    } else{
+                        jac_init(&Te[k - 1]);
+                    }
+                }
+                jac_neg(&TT, &PQep1[i][j]);
+                ADD(&Re[0], &Re[1], &TT, curve);
+                chk = true;
+                break;
+            }
+        }
+        if (chk) {
+            break;
+        }
+    }
+
+    // // Unrolling the first two iterations
+    // if (is_jac_equal(&Pe5[0], &Re[0])) {                // 1, 0
+    //     *x += 1;
+    //     copy_jac_point(&Te[0], &P);
+    //     for (j = 3; j <= B; j++) {
+    //         copy_jac_point(&Te[j - 1], &Pe5[j - 1]);
+    //     }
+    //     jac_neg(&TT, &Pe5[1]);
+    //     ADD(&Re[0], &Re[1], &TT, curve);
+    // } else if (is_jac_equal(&PQep0[1][1], &Re[0])) {    // 1, 1
+    //     *x += 1;
+    //     *y += 1;
+    //     copy_jac_point(&Te[0], &PQp);
+    //     for (j = 3; j <= B; j++) {
+    //         ADD(&Te[j - 1], &Pe5[j - 1], &Qe5[j - 1], curve);
+    //     }
+    //     jac_neg(&TT, &PQep1[1][1]);
+    //     ADD(&Re[0], &Re[1], &TT, curve);
+    // } else if (is_jac_equal(&PQep0[1][2], &Re[0])) {    // 1, 2
+    //     *x += 1;
+    //     *y += 2;
+    //     copy_jac_point(&Te[0], &PQxy[1][2]);
+    //     for (j = 3; j <= B; j++) {
+    //         DBL(&TT, &Qe5[j - 1], curve);
+    //         ADD(&Te[j - 1], &Pe5[j - 1], &TT, curve);
+    //     }
+    //     jac_neg(&TT, &PQep1[1][2]);
+    //     ADD(&Re[0], &Re[1], &TT, curve);
+    // } else if (is_jac_equal(&PQep0[2][0], &Re[0])) {    // 2, 0
+    //     *x += 2;
+    //     copy_jac_point(&Te[0], &PQxy[2][0]);
+    //     for (j = 3; j <= B; j++) {
+    //         DBL(&Te[j - 1], &Pe5[j - 1], curve);
+    //     }
+    //     jac_neg(&TT, &PQep1[2][0]);
+    //     ADD(&Re[0], &Re[1], &TT, curve);
+    // } else if (is_jac_equal(&PQep0[2][1], &Re[0])) {    // 2, 1
+    //     *x += 2;
+    //     *y += 1;
+    //     copy_jac_point(&Te[0], &PQxy[2][1]);
+    //     for (j = 3; j <= B; j++) {
+    //         DBL(&TT, &Pe5[j - 1], curve);
+    //         ADD(&Te[j - 1], &TT, &Qe5[j - 1], curve);
+    //     }
+    //     jac_neg(&TT, &PQep1[2][1]);
+    //     ADD(&Re[0], &Re[1], &TT, curve);
+    // } else if (is_jac_equal(&PQep0[2][2], &Re[0])) {    // 2, 2
+    //     *x += 2;
+    //     *y += 2;
+    //     copy_jac_point(&Te[0], &PQxy[2][2]);
+    //     for (j = 3; j <= B; j++) {
+    //         DBL(&TT, &Pe5[j - 1], curve);
+    //         DBL(&SS, &Qe5[j - 1], curve);
+    //         ADD(&Te[j - 1], &TT, &SS, curve);
+    //     }
+    //     jac_neg(&TT, &PQep1[2][2]);
+    //     ADD(&Re[0], &Re[1], &TT, curve);
+    // } else if (is_jac_equal(&Qe5[0], &Re[0])) {           // 0, 1
+    //     *y += 1;
+    //     copy_jac_point(&Te[0], &Q);
+    //     for (j = 3; j <= B; j++) {
+    //         copy_jac_point(&Te[j - 1], &Qe5[j - 1]);
+    //     }
+    //     jac_neg(&TT, &Qe5[1]);
+    //     ADD(&Re[0], &Re[1], &TT, curve);
+    // } else if (is_jac_equal(&PQep0[0][2], &Re[0])) {        // 0, 2
+    //     *y += 2;
+    //     copy_jac_point(&Te[0], &PQxy[0][2]);
+    //     for (j = 3; j <= B; j++) {
+    //         DBL(&Te[j - 1], &Qe5[j - 1], curve);
+    //     }
+    //     jac_neg(&TT, &PQep1[0][2]);
+    //     ADD(&Re[0], &Re[1], &TT, curve);
+    // } else {                                                // 0, 0
+    //     jac_init(&Te[0]);
+    //     for (j = 3; j <= B; j++) {
+    //         jac_init(&Te[j - 1]);
+    //     }
+    //     copy_jac_point(&Re[0], &Re[1]);
+    // }
+
+    for (i = 3; i <= B; i++) {
+        value *= 5;
+        jac_neg(&TT, &Te[i - 1]);
+        ADD(&TT, &Re[i - 1], &TT, curve); // TT
+        chk = false;
+        for (j = 0; j < 5; j++) {
+            for (k = 0; k < 5; k ++) {
+                if (is_jac_equal(&PQep0[j][k], &Re[i - 1])) {
+                    *x += value * j;
+                    *y += value * k;
+                    copy_jac_point(&Te[0], &PQxy[j][k]);
+                    for (int l = i + 1; l <= B; l++) {
+                        if(j + k != 0) {
+                            digit_t x = j, y = k;
+                            DBLMUL_generic(&Te[l - 1], &Pe5[l - 1], &x, &Qe5[l - 1], &y, curve, 1);
+                        } else{
+                            jac_init(&Te[l - 1]);
+                        }
+                    }
+                    jac_neg(&TT, &PQep1[j][k]);
+                    ADD(&Re[i - 1], &Re[i], &TT, curve);
+                    chk = true;
+                    break;
+                }
+            }
+            if (chk) {
+                break;
+            }
+        }
+    }
+
+    // // Unrolling iterations 3-B
+    // for (i = 3; i <= B; i++) {
+    //     value *= 3;
+    //     jac_neg(&TT, &Te[i - 1]);
+    //     ADD(&TT, &Re[i - 1], &TT, curve); // TT <- Re[i-1]-T[i-1]
+    //     if (is_jac_equal(&Pe5[0], &Re[0])) {
+    //         *x += value;
+    //         ADD(&Te[0], &Te[0], &Pe5[f - i + 1], curve);
+    //         for (j = i + 1; j <= B; j++) {
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe5[j - i + 1], curve);
+    //         }
+    //         jac_neg(&SS, &Pe5[1]);
+    //         ADD(&Re[0], &TT, &SS, curve);
+    //     } else if (is_jac_equal(&PQep0[1][1], &Re[0])) {
+    //         *x += value;
+    //         *y += value;
+    //         ADD(&Te[0], &Te[0], &Pe5[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Qe5[f - i + 1], curve);
+    //         for (j = i + 1; j <= B; j++) {
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe5[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe5[j - i + 1], curve);
+    //         }
+    //         jac_neg(&SS, &PQep1[1][1]);
+    //         ADD(&Re[0], &TT, &SS, curve);
+    //     } else if (is_jac_equal(&PQ2ep0, &Re[0])) {
+    //         *x += value;
+    //         *y += value;
+    //         *y += value;
+    //         ADD(&Te[0], &Te[0], &Pe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Qe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Qe3[f - i + 1], curve);
+    //         for (j = i + 1; j <= B; j++) {
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe3[j - i + 1], curve);
+    //         }
+    //         jac_neg(&SS, &PQ2ep1);
+    //         ADD(&Re[0], &TT, &SS, curve);
+    //     } else if (is_jac_equal(&P2ep0, &Re[0])) {
+    //         *x += value;
+    //         *x += value;
+    //         ADD(&Te[0], &Te[0], &Pe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Pe3[f - i + 1], curve);
+    //         for (j = i + 1; j <= B; j++) {
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe3[j - i + 1], curve);
+    //         }
+    //         jac_neg(&SS, &P2ep1);
+    //         ADD(&Re[0], &TT, &SS, curve);
+    //     } else if (is_jac_equal(&P2Qep0, &Re[0])) {
+    //         *x += value;
+    //         *x += value;
+    //         *y += value;
+    //         ADD(&Te[0], &Te[0], &Pe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Pe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Qe3[f - i + 1], curve);
+    //         for (j = i + 1; j <= B; j++) {
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe3[j - i + 1], curve);
+    //         }
+    //         jac_neg(&SS, &P2Qep1);
+    //         ADD(&Re[0], &TT, &SS, curve);
+    //     } else if (is_jac_equal(&P2Q2ep0, &Re[0])) {
+    //         *x += value;
+    //         *x += value;
+    //         *y += value;
+    //         *y += value;
+    //         ADD(&Te[0], &Te[0], &Pe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Pe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Qe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Qe3[f - i + 1], curve);
+    //         for (j = i + 1; j <= B; j++) {
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Pe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe3[j - i + 1], curve);
+    //         }
+    //         jac_neg(&SS, &P2Q2ep1);
+    //         ADD(&Re[0], &TT, &SS, curve);
+    //     } else if (is_jac_equal(&Qe3[0], &Re[0])) {
+    //         *y += value;
+    //         ADD(&Te[0], &Te[0], &Qe3[f - i + 1], curve);
+    //         for (j = i + 1; j <= B; j++) {
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe3[j - i + 1], curve);
+    //         }
+    //         jac_neg(&SS, &Qe3[1]);
+    //         ADD(&Re[0], &TT, &SS, curve);
+    //     } else if (is_jac_equal(&Q2ep0, &Re[0])) {
+    //         *y += value;
+    //         *y += value;
+    //         ADD(&Te[0], &Te[0], &Qe3[f - i + 1], curve);
+    //         ADD(&Te[0], &Te[0], &Qe3[f - i + 1], curve);
+    //         for (j = i + 1; j <= B; j++) {
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe3[j - i + 1], curve);
+    //             ADD(&Te[j - 1], &Te[j - 1], &Qe3[j - i + 1], curve);
+    //         }
+    //         jac_neg(&SS, &Q2ep1);
+    //         ADD(&Re[0], &TT, &SS, curve);
+    //     } else {
+    //         copy_jac_point(&Re[0], &TT);
+    //     }
+    // }
+
+    for (i = B; i < f; i++) {
+        value *= 5;
+        chk = false;
+        for (j = 0; j < 5; j++) {
+            for (k = 0; k < 5; k ++) {
+                if (is_jac_equal(&PQep0[j][k], &Re[0])) {
+                    *x += value * j;
+                    *y += value * k;
+                    copy_jac_point(&TT, &PQxy[j][k]);
+                    for (l = 0; l < (i - 1); l++) {
+                        ec_mul(&TT, curve, 5, &TT);
+                    }
+                    ADD(&Te[0], &Te[0], &TT, curve);
+                    chk = true;
+                    break;
+                }
+            }
+            if (chk) {
+                break;
+            }
+        }
+        jac_neg(&TT, &Te[0]);
+        ADD(&Re[0], R, &TT, curve);
+        for (j = 0; j < (f - i - 1); j++) {
+            ec_mul(&Re[0], curve, 5, &Re[0]);
+        }
+    }
+
+    // // Main Loop
+    // for (i = B; i < f; i++) {
+    //     value *= 3;
+    //     if (is_jac_equal(&Pe3[0], &Re[0])) {
+    //         *x += value;
+    //         copy_jac_point(&TT, &P);
+    //         for (j = 0; j < (i - 1); j++) {
+    //             TPL(&TT, &TT, curve);
+    //         }
+    //         ADD(&Te[0], &Te[0], &TT, curve);
+    //     } else if (is_jac_equal(&PQep0, &Re[0])) {
+    //         *x += value;
+    //         *y += value;
+    //         copy_jac_point(&TT, &PQp);
+    //         for (j = 0; j < (i - 1); j++) {
+    //             TPL(&TT, &TT, curve);
+    //         }
+    //         ADD(&Te[0], &Te[0], &TT, curve);
+    //     } else if (is_jac_equal(&PQ2ep0, &Re[0])) {
+    //         *x += value;
+    //         *y += value;
+    //         *y += value;
+    //         copy_jac_point(&TT, &PQ2p);
+    //         for (j = 0; j < (i - 1); j++) {
+    //             TPL(&TT, &TT, curve);
+    //         }
+    //         ADD(&Te[0], &Te[0], &TT, curve);
+    //     } else if (is_jac_equal(&P2ep0, &Re[0])) {
+    //         *x += value;
+    //         *x += value;
+    //         copy_jac_point(&TT, &P2p);
+    //         for (j = 0; j < (i - 1); j++) {
+    //             TPL(&TT, &TT, curve);
+    //         }
+    //         ADD(&Te[0], &Te[0], &TT, curve);
+    //     } else if (is_jac_equal(&P2Qep0, &Re[0])) {
+    //         *x += value;
+    //         *x += value;
+    //         *y += value;
+    //         copy_jac_point(&TT, &P2Qp);
+    //         for (j = 0; j < (i - 1); j++) {
+    //             TPL(&TT, &TT, curve);
+    //         }
+    //         ADD(&Te[0], &Te[0], &TT, curve);
+    //     } else if (is_jac_equal(&P2Q2ep0, &Re[0])) {
+    //         *x += value;
+    //         *x += value;
+    //         *y += value;
+    //         *y += value;
+    //         copy_jac_point(&TT, &P2Q2p);
+    //         for (j = 0; j < (i - 1); j++) {
+    //             TPL(&TT, &TT, curve);
+    //         }
+    //         ADD(&Te[0], &Te[0], &TT, curve);
+    //     } else if (is_jac_equal(&Qe3[0], &Re[0])) {
+    //         *y += value;
+    //         copy_jac_point(&TT, &Q);
+    //         for (j = 0; j < (i - 1); j++) {
+    //             TPL(&TT, &TT, curve);
+    //         }
+    //         ADD(&Te[0], &Te[0], &TT, curve);
+    //     } else if (is_jac_equal(&Q2ep0, &Re[0])) {
+    //         *y += value;
+    //         *y += value;
+    //         copy_jac_point(&TT, &Q2p);
+    //         for (j = 0; j < (i - 1); j++) {
+    //             TPL(&TT, &TT, curve);
+    //         }
+    //         ADD(&Te[0], &Te[0], &TT, curve);
+    //     }
+    //     jac_neg(&TT, &Te[0]);
+    //     ADD(&Re[0], R, &TT, curve);
+    //     for (j = 0; j < (f - i - 1); j++) {
+    //         TPL(&Re[0], &Re[0], curve);
+    //     }
+    // }
+
+    value *= 5;
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            if (is_jac_equal(&PQep0[i][j], &Re[0])) {
+                *x += value * i;
+                *y += value * j;
+                return;
+            }
+        }
+    }
+    // if (is_jac_equal(&Pe3[0], &Re[0])) {
+    //     *x += value;
+    // } else if (is_jac_equal(&PQep0, &Re[0])) {
+    //     *x += value;
+    //     *y += value;
+    // } else if (is_jac_equal(&PQ2ep0, &Re[0])) {
+    //     *x += value;
+    //     *y += value;
+    //     *y += value;
+    // } else if (is_jac_equal(&P2ep0, &Re[0])) {
+    //     *x += value;
+    //     *x += value;
+    // } else if (is_jac_equal(&P2Qep0, &Re[0])) {
+    //     *x += value;
+    //     *x += value;
+    //     *y += value;
+    // } else if (is_jac_equal(&P2Q2ep0, &Re[0])) {
+    //     *x += value;
+    //     *x += value;
+    //     *y += value;
+    //     *y += value;
+    // } else if (is_jac_equal(&Qe3[0], &Re[0])) {
+    //     *y += value;
+    // } else if (is_jac_equal(&Q2ep0, &Re[0])) {
+    //     *y += value;
+    //     *y += value;
+    // }
+}
+
+int ec_dlog_5(digit_t *x,
+                     digit_t *y,
+                     const jac_point_t *R,
+                     const int f,
+                     const int B,
+                     const jac_point_t *Pe5,
+                     const jac_point_t *Qe5,
+                     const jac_point_t *PQe5,
+                     const ec_curve_t *curve)
+{
+    if (f < 1 || f > POWER_OF_5 || B < 1 || B > POWER_OF_5 / 2) {
+        return -1; // Invalid parameters
+    }
+    ec_dlog_5_step(x, y, R, f, B, Pe5, Qe5, PQe5, curve);
+    return 0;
 }
 
 void

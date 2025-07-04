@@ -85,12 +85,13 @@ def config():
         exit(-1)
     POWER_OF_2 = factorization[0][1]
     POWER_OF_3 = factorization[1][1]
+    POWER_OF_5 = factorization[2][1]
     Pfactors = [factor[0] for factor in factorization[1:] if factor[0] <= B]
 
     # factorization = factor(p-1)
     # Mfactors = [factor[0] for factor in factorization[1:] if factor[0] <= B]
     Mfactors = []
-    return p,POWER_OF_2,POWER_OF_3,Pfactors,Mfactors
+    return p,POWER_OF_2,POWER_OF_3,POWER_OF_5,Pfactors,Mfactors
 
 
 sys.setrecursionlimit(1500)
@@ -190,7 +191,7 @@ def optimised_strategy(n, M, S, I):
 
 
 if __name__ == '__main__':
-    p,POWER_OF_2,POWER_OF_3,Pfactors,Mfactors = config()
+    p,POWER_OF_2,POWER_OF_3,POWER_OF_5,Pfactors,Mfactors = config()
     PMfactors = Pfactors + Mfactors
 
     if p2==0 and q4==0:
@@ -220,6 +221,7 @@ if __name__ == '__main__':
     f.write('\n')
     f.write(f'#define POWER_OF_2 {POWER_OF_2}\n')
     f.write(f'#define POWER_OF_3 {POWER_OF_3}\n')
+    f.write(f'#define POWER_OF_5 {POWER_OF_5}\n')
     f.write(f'#define THREEe {THREEe}\n')
     f.write('\n')
     f.write(f'static digit_t TWOpF[NWORDS_ORDER] = {fp2str(2**POWER_OF_2, p)}; // Fp representation for the power of 2\n')
