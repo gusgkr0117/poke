@@ -1816,7 +1816,7 @@ ec_dlog_5_step(digit_t *x,
 { // Based on Montgomery formulas using Jacobian coordinates
     int i, j;
     digit_t value = 1;
-    jac_point_t P, Q, TT, SS, Te[POWER_OF_5 / 2],
+    jac_point_t P, Q, TT, SS, YY, Te[POWER_OF_5 / 2],
         Re[POWER_OF_5 / 2]; // Storage could be reduced to e points
     jac_point_t PQep0[5][5] ,PQxy[5][5], PQep1[5][5];
 
@@ -1867,6 +1867,7 @@ ec_dlog_5_step(digit_t *x,
         }
     }
 
+
     bool chk = false;
     for (i = 0; i < 5; i++) {
         for (j = 0; j < 5; j++) {
@@ -1896,7 +1897,6 @@ ec_dlog_5_step(digit_t *x,
             break;
         }
     }
-    printf("x = %lx, y = %lx\n", *x, *y);
 
     // iterations 3-B
     for (i = 3; i <= B; i++) {
@@ -1913,9 +1913,11 @@ ec_dlog_5_step(digit_t *x,
                         *x += value * j;
                         *y += value * k;
                         digit_t z = j, t = k;
-                        DBLMUL_generic(&Te[0], &Pe5[f - i + 1], &z, &Qe5[f - i + 1], &t, curve, 1);
+                        DBLMUL_generic(&YY, &Pe5[f - i + 1], &z, &Qe5[f - i + 1], &t, curve, 1);
+                        ADD(&Te[0], &Te[0], &YY, curve);
                         for (int l = i + 1; l <= B; l++) {
-                            DBLMUL_generic(&Te[l - 1], &Pe5[l - i + 1], &z, &Qe5[l - i + 1], &t, curve, 1);
+                            DBLMUL_generic(&YY, &Pe5[l - i + 1], &z, &Qe5[l - i + 1], &t, curve, 1);
+                            ADD(&Te[l - 1], &Te[l - 1], &YY, curve);
                         }
                         jac_neg(&SS, &PQep1[j][k]);
                         ADD(&Re[0], &TT, &SS, curve);
@@ -1929,8 +1931,6 @@ ec_dlog_5_step(digit_t *x,
             }
         }
     }
-
-    printf("x = %lx, y = %lx\n", *x, *y);
 
     // Main Loop
     for (i = B; i < f; i++) {
@@ -2090,7 +2090,6 @@ void ec_dlog_5(digit_t *scalarP,
     rest = f - e * FIVEe;
     // w0, z0 <- dlog5(R, f1, f1 div 2)
     ec_dlog_5_step(&w0, &z0, &TT, (int)rest, (int)(rest >> 1), &Pe5[0], &Qe5[0], &PQe5[0], &curvenorm);
-    printf("w0: %lx, z0: %lx\n", (unsigned long)w0, (unsigned long)z0);
 
     // RR <- RR - (w0*Pe5[f-1] + z0*Qe5[f-1])
     DBLMUL(&R2r0, &Pe5[f - e * FIVEe - 1], w0, &Qe5[f - e * FIVEe - 1], z0, &curvenorm);
