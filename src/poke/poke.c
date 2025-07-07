@@ -1,3 +1,4 @@
+#include <poke.h>
 #include <hd.h>
 #include <endomorphism_action.h>
 #include <torsion_constants.h>
@@ -44,9 +45,6 @@ int eval_dimtwo_isog(theta_chain_t *phi, ec_basis_t *evalPQ, ec_basis_t *PQ, the
 
     ec_basis_t RS;
     ec_curve_to_basis_235(&RS, &E01->E2);
-    curve_print("RS basis", E01->E2);
-    point_print("RS basis", RS.P);
-    point_print("RS basis", RS.Q);
 
     input_points.P2 = RS.P;
     ec_set_zero(&input_points.P1);
@@ -98,7 +96,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ec_basis_t *evalPQ, ec_basis_t *PQ, the
     return 1;
 }
 
-int test() {
+int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     ibz_t q, alpha, beta, gamma, delta, rhs, deg;
     ibz_t A, q_bound;
     
@@ -123,12 +121,22 @@ int test() {
     ibz_random_unit(&gamma, &TORSION_PLUS_3POWER);
     ibz_random_unit(&delta, &TORSION_PLUS_5POWER);
 
-    gmp_printf("q = %Zd\n", q);
+    memset(&sk->deg, 0, NWORDS_ORDER * RADIX / 8);
+    memset(&sk->alpha, 0, NWORDS_ORDER * RADIX / 8);
+    memset(&sk->beta, 0, NWORDS_ORDER * RADIX / 8);
+    memset(&sk->delta, 0, NWORDS_ORDER * RADIX / 8);
 
-    gmp_printf("alpha = %Zd\n", alpha);
-    gmp_printf("beta = %Zd\n", beta);
-    gmp_printf("gamma = %Zd\n", gamma);
-    gmp_printf("delta = %Zd\n", delta);
+    ibz_to_digits(sk->deg, &deg);
+    ibz_to_digits(sk->alpha, &alpha);
+    ibz_to_digits(sk->beta, &beta);
+    ibz_to_digits(sk->delta, &delta);
+
+    // gmp_printf("q = %Zd\n", q);
+
+    // gmp_printf("alpha = %Zd\n", alpha);
+    // gmp_printf("beta = %Zd\n", beta);
+    // gmp_printf("gamma = %Zd\n", gamma);
+    // gmp_printf("delta = %Zd\n", delta);
     ec_curve_t curve = CURVE_E0;
     fp2_t j_inv;
     ec_j_inv(&j_inv, &curve);
@@ -141,7 +149,7 @@ int test() {
         return 1;
     }
 
-    quat_alg_elem_print(&tau);
+    // quat_alg_elem_print(&tau);
     // check if the norm of tau equals to rhs
     ibq_t tau_norm;
     ibq_init(&tau_norm);
@@ -159,16 +167,6 @@ int test() {
 
     endomorphism_application_three_basis(&E0_three, &curve, &tau, TORSION_PLUS_ODD_POWERS[0]);
     endomorphism_application_even_basis(&E0_two, &curve, &tau, TORSION_PLUS_EVEN_POWER);
-
-    // point_print("tau(P2): ", E0_two.P);
-    // point_print("tau(Q2): ", E0_two.Q);
-    // point_print("tau(P3): ", E0_three.P);
-    // point_print("tau(Q3): ", E0_three.Q);
-    // ec_point_t tmpP, tmpQ;
-    // ec_mul_ibz(&tmpP, &curve, &ibz_const_five, &BASIS_THREE.P);
-    // ec_mul_ibz(&tmpQ, &curve, &ibz_const_five, &BASIS_THREE.Q);
-    // point_print("5*P3: ", tmpP);
-    // point_print("5*Q3: ", tmpQ);
 
     ec_point_t kernel_point;
     ec_isog_odd_t isog;
@@ -287,29 +285,55 @@ int test() {
     
     eval_dimtwo_isog(&hd_isog, &imPQ23x, &eval_points, &E01);
 
-    ec_basis_t XY_A_basis;
-    ibz_t XY_cofactor;
-    ibz_init(&XY_cofactor);
-    ibz_invmod(&XY_cofactor, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
-    ibz_mul(&XY_cofactor, &XY_cofactor, &TORSION_PLUS_5POWER);
-    ibz_mul(&XY_cofactor, &XY_cofactor, &delta);
-    ec_mul_ibz(&XY_A_basis.P, &curve, &XY_cofactor, &imPQ23x.P);
-    ec_mul_ibz(&XY_A_basis.Q, &curve, &XY_cofactor, &imPQ23x.Q);
-    ec_mul_ibz(&XY_A_basis.PmQ, &curve, &XY_cofactor, &imPQ23x.PmQ);
+    ibz_t cofactor;
+    // Compute X_A, Y_B
+    ibz_init(&cofactor);
+    ibz_invmod(&cofactor, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+    ibz_mul(&cofactor, &cofactor, &TORSION_PLUS_5POWER);
+    ibz_mul(&cofactor, &cofactor, &delta);
+    ec_mul_ibz(&pk->PQxy.P, &curve, &cofactor, &imPQ23x.P);
+    ec_mul_ibz(&pk->PQxy.Q, &curve, &cofactor, &imPQ23x.Q);
+    ec_mul_ibz(&pk->PQxy.PmQ, &curve, &cofactor, &imPQ23x.PmQ);
 
-    printf("Succeed\n");
+    // Compute P2, Q2
+    ibz_invmod(&cofactor, &TORSION_PLUS_35POWER, &TORSION_PLUS_2POWER);
+    ibz_mul(&cofactor, &cofactor, &TORSION_PLUS_35POWER);
+    ec_mul_ibz(&pk->PQ2.P, &curve, &cofactor, &imPQ23x.P);
+    ec_mul(&pk->PQ2.P, &curve, sk->alpha, &imPQ23x.P);
+    ec_mul_ibz(&pk->PQ2.Q, &curve, &cofactor, &imPQ23x.Q);
+    ec_mul(&pk->PQ2.Q, &curve, sk->beta, &imPQ23x.Q);
+    xDBLMUL(&pk->PQ2.PmQ, &imPQ23x.P, sk->alpha, &imPQ23x.Q, sk->beta, &imPQ23x.PmQ, &curve);
+    
+    // Compute P3, Q3
+    ibz_invmod(&cofactor, &TORSION_PLUS_25POWER, &TORSION_PLUS_3POWER);
+    ibz_mul(&cofactor, &cofactor, &TORSION_PLUS_25POWER);
+    ec_mul_ibz(&pk->PQ3.P, &curve, &cofactor, &imPQ23x.P);
+    ec_mul_ibz(&pk->PQ2.P, &curve, &gamma, &imPQ23x.P);
+    ec_mul_ibz(&pk->PQ3.Q, &curve, &cofactor, &imPQ23x.Q);
+    ec_mul_ibz(&pk->PQ2.Q, &curve, &gamma, &imPQ23x.Q);
+    ec_mul_ibz(&pk->PQ3.PmQ, &curve, &cofactor, &imPQ23x.PmQ);
+    ec_mul_ibz(&pk->PQ2.PmQ, &curve, &gamma, &imPQ23x.PmQ);
 
-    ibz_finalize(&inverse);
-    ibz_finalize(&three_m1_order);
+    pk->EA.A = curve.A;
+    pk->EA.C = curve.C;
+    pk->EA.A24 = curve.A24;
+
+    ibz_finalize(&cofactor);
     ibz_finalize(&remainder);
     ibz_finalize(&q);
-    return 0; 
+    return 1; 
+}
+
+int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m) {
+    return 1;
 }
 
 int main() {
     int res = 1;
+    poke_sk_t sk = {0};
+    poke_pk_t pk;
 
-    test();
+    keygen(&sk, &pk);
 
     return res;
 }

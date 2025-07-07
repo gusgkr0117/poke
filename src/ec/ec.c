@@ -1831,13 +1831,6 @@ ec_dlog_5_step(digit_t *x,
         MUL_FIVE(&Re[f - i - 2], &Re[f - i - 1], curve);
     }
 
-    // ec_point_t test_point;
-    // jac_to_xz(&test_point, &Re[0]);
-    // point_print("Re[0] : ", test_point);
-    // jac_to_xz(&test_point, &Re[1]);
-    // point_print("Re[1] : ", test_point);
-
-
     jac_init(&PQxy[0][0]);
     for (i = 0; i < 5; i++) {
         for (j = 0; j < 5; j++) {
@@ -1904,8 +1897,6 @@ ec_dlog_5_step(digit_t *x,
             break;
         }
     }
-
-    // printf("x: %lu, y: %lu\n", *x, *y);
 
     // iterations 3-B
     for (i = 3; i <= B; i++) {
@@ -2099,7 +2090,6 @@ void ec_dlog_5(digit_t *scalarP,
     rest = f - e * FIVEe;
     // w0, z0 <- dlog5(R, f1, f1 div 2)
     ec_dlog_5_step(&w0, &z0, &TT, (int)rest, (int)(rest >> 1), &Pe5[0], &Qe5[0], &PQe5[0], &curvenorm);
-    // printf("w0 = %lu, z0 = %lu\n", w0, z0);
 
     // RR <- RR - (w0*Pe5[f-1] + z0*Qe5[f-1])
     DBLMUL(&R2r0, &Pe5[f - e * FIVEe - 1], w0, &Qe5[f - e * FIVEe - 1], z0, &curvenorm);
@@ -2217,8 +2207,6 @@ void ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, const
         ibz_mod(&iQ3, &iQ3, &TORSION_PLUS_3POWER);
         ibz_sub(&iP3, &TORSION_PLUS_3POWER, &iP3);
         ibz_sub(&iQ3, &TORSION_PLUS_3POWER, &iQ3);
-        // gmp_printf("iP3: %Zd\n", &iP3);
-        // gmp_printf("iQ3: %Zd\n", &iQ3);
         memset(scalarP3, 0, NWORDS_ORDER * RADIX / 8);
         memset(scalarQ3, 0, NWORDS_ORDER * RADIX / 8);
         ibz_to_digits(scalarP3, &iP3);

@@ -362,7 +362,7 @@ matrix_application_three_basis(ec_basis_t *bas, ec_curve_t *E, ibz_mat_2x2_t *ma
     DBLMUL_generic(&R, &P, scalars[0], &Q, scalars[1], E, NWORDS_FIELD);
     jac_to_xz(&bas->P, &R);
     // ec_biscalar_mul(&bas->P, E, scalars[0], scalars[1], &tmp_bas);
-    point_print("bas->P: ", bas->P);
+    // point_print("bas->P: ", bas->P);
     ibz_to_digit_array(scalars[0], &(*mat)[0][1]);
     ibz_to_digit_array(scalars[1], &(*mat)[1][1]);
     lift_basis(&P, &Q, &tmp_bas, E);
