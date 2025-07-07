@@ -1,9 +1,10 @@
+#include "curve_extras.h"
 #include "ec.h"
 #include "fp2.h"
 #include "isog.h"
 #include "gf_constants.h"
 
-static void
+void
 xTPL(ec_point_t *Q, const ec_point_t *P, const ec_point_t *A3)
 {
     /* ----------------------------------------------------------------------------- *
@@ -35,7 +36,7 @@ xTPL(ec_point_t *Q, const ec_point_t *P, const ec_point_t *A3)
     fp2_mul(&Q->z, &t1, &t0);
 }
 
-static void xMUL_FIVE(ec_point_t *Q, const ec_point_t *P, const ec_point_t *A3, const ec_point_t *A24)
+void xMUL_FIVE(ec_point_t *Q, const ec_point_t *P, const ec_point_t *A3, const ec_point_t *A24)
 {
     ec_point_t T1, T2;
     xTPL(&T1, P, A3);
@@ -803,37 +804,41 @@ ec_curve_to_basis_235(ec_basis_t *PQ235, const ec_curve_t *curve)
         }
         if (ec_is_zero(&Q6))
             continue;
+
+        // Check if point has full order as a 5^h-torsion point
         xDBL_A24(&T, &Q6, &A24);
         xTPL(&T, &T, &A3);
         if (ec_is_zero(&T))
             continue;
+        xDBL_A24(&R, &P6, &A24);
+        xTPL(&R, &R, &A3);
+        // Check if point P is independent from point Q
+        if (is_point_equal(&T, &R)) // P * 2^f * 3^g = +-Q * 2^f * 3^g
+            continue;
+        xDBL_A24(&T, &T, &A24); // P * 2^f * 3^g = +-2 * Q * 2^f * 3^g
+        if (is_point_equal(&T, &R))
+            continue;
+        
+        // Check if point has full order as a 2^f-torsion point
         xTPL(&T, &Q6, &A3);
         xMUL_FIVE(&T, &T,  &A3, &A24);
         if (ec_is_zero(&T))
             continue;
+        xTPL(&R, &P6, &A3);
+        xMUL_FIVE(&R, &R,  &A3, &A24);
+        // Check if point P is independent from point Q
+        if (is_point_equal(&R, &T)) // P * 3^g * 5^h = +-Q * 3^g * 5^h
+            continue;
+
+        // Check if point has full order as a 3^g-torsion point
         xMUL_FIVE(&T, &Q6,  &A3, &A24);
         xDBL_A24(&T, &T, &A24);
         if (ec_is_zero(&T))
             continue;
-
-        // Check if point P is independent from point Q
-        xTPL(&R, &P6, &A3);
-        xTPL(&T, &Q6, &A3);
+        xMUL_FIVE(&R, &P6,  &A3, &A24);
         xDBL_A24(&R, &R, &A24);
-        xDBL_A24(&T, &T, &A24);
-        if (is_point_equal(&R, &T))
-            continue;
-        xDBL_A24(&R, &P6, &A24);
-        xDBL_A24(&T, &Q6, &A24);
-        xMUL_FIVE(&R, &R, &A3, &A24);
-        xMUL_FIVE(&T, &T, &A3, &A24);
-        if (is_point_equal(&R, &T))
-            continue;
-        xMUL_FIVE(&R, &P6, &A3, &A24);
-        xMUL_FIVE(&T, &Q6, &A3, &A24);
-        xTPL(&R, &R, &A3);
-        xTPL(&T, &T, &A3);
-        if (is_point_equal(&R, &T))
+        // Check if point P is independent from point Q
+        if (is_point_equal(&R, &T)) // P * 2^f * 5^h = +-Q * 2^f * 5^h
             continue;
         break;
     }

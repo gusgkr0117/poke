@@ -7,4 +7,4 @@ target_include_directories(biextension-test PRIVATE ${INC_GF} ${INC_COMMON} ${IN
 target_link_libraries(biextension-test lib_intbig lib_ec)
 
 add_test(ec_basis_gen_test basis-gen-test 10)
-add_test(biextension-test biextension-test 10)
+add_test(biextension-test biextension-test 1000)

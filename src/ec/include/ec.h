@@ -421,6 +421,38 @@ void ec_dlog_5(digit_t *scalarP,
                const ec_point_t *R,
                const ec_curve_t *curve);
 
+/**
+ * @brief Compute the generalized dlog of R wrt the 3^e-basis PQ3
+ *
+ * Ensure that R = scalarP * P + scalarQ * Q
+ *
+ * @param scalarP the computed dlog
+ * @param scalarQ the computed dlog
+ * @param base a 2^f*3^g-torsion basis
+ * @param R a point of order dividing 2^f*3^g
+ */
+void ec_dlog_6(digit_t *scalarP,
+               digit_t *scalarQ,
+               const ec_basis_t *base,
+               const ec_point_t *R,
+               const ec_curve_t *E);
+
+/**
+ * @brief Compute the generalized dlog of R wrt the 2^f*3^g*5^h-basis PQ
+ *
+ * Ensure that R = scalarP * P + scalarQ * Q
+ *
+ * @param scalarP the computed dlog
+ * @param scalarQ the computed dlog
+ * @param base a 2^f*3^g-torsion basis
+ * @param R a point of order dividing 2^f*3^g*5^h
+ */
+void ec_dlog_235(digit_t *scalarP,
+               digit_t *scalarQ,
+               const ec_basis_t *base,
+               const ec_point_t *R,
+               const ec_curve_t *E);
+
 /** @}
  */
 
