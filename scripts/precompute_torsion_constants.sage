@@ -25,6 +25,7 @@ tors2part = (p+1).p_primary_part(2)
 tors3part = (p+1).p_primary_part(3)
 tors5part = (p+1).p_primary_part(5)
 tors23part = tors2part * tors3part
+tors235part = tors23part * tors5part
 
 defs = {
         'TORSION_2POWER_BYTES': (int(tors2part).bit_length() + 7) // 8,
@@ -54,6 +55,7 @@ if use_twist == 1:
         Object('ibz_t', 'TORSION_PLUS_3POWER', Ibz(tors3part)),
         Object('ibz_t', 'TORSION_PLUS_5POWER', Ibz(tors5part)),
         Object('ibz_t', 'TORSION_PLUS_23POWER', Ibz(tors23part)),
+        Object('ibz_t', 'TORSION_PLUS_235POWER', Ibz(tors235part)),
         Object('ibz_t', 'DEGREE_COMMITMENT', Ibz(Dcom)),
         Object('ibz_t', 'DEGREE_COMMITMENT_PLUS', Ibz(gcd(Dcom, Tpls))),
         Object('ibz_t', 'DEGREE_COMMITMENT_MINUS', Ibz(gcd(Dcom, Tmin))),

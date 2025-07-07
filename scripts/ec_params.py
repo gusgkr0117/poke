@@ -262,6 +262,10 @@ if __name__ == '__main__':
     f.write(f'static digit_t p_cofactor_for_6fg[{(((p+1)//3**POWER_OF_3//2**POWER_OF_2).bit_length()-1)//64+1}] = {fp2str((p+1)//3**POWER_OF_3//2**POWER_OF_2, (p+1)//3**POWER_OF_3//2**POWER_OF_2+1)};\n')
     f.write(f'#define P_COFACTOR_FOR_6FG_BITLENGTH {((p+1)//3**POWER_OF_3//2**POWER_OF_2).bit_length()}\n')
     f.write('\n')
+    f.write('// p+1 divided by the powers of 2, 3 and 5\n')
+    f.write(f'static digit_t p_cofactor_for_235fgh[{(((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5).bit_length()-1)//64+1}] = {fp2str((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5, (p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5+1)};\n')
+    f.write(f'#define P_COFACTOR_FOR_235FGH_BITLENGTH {((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5).bit_length()}\n')
+    f.write('\n')
     f.write('// Strategy for 4-isogenies\n')
     f.write(f'static int STRATEGY4[{number_strategy_dim2_isog}][{POWER_OF_2//2}]='+'{\n')
     for i in range(0,number_strategy_4_isog):

@@ -103,6 +103,8 @@ int dlog_3_test() {
 
 int dlog_5_test() {
     ec_curve_t E0 = CURVE_E0;
+    // E0.A = fp2_from_str("0x00006499ca7bb418a162d80493a74bd3a14c14b936da54122e54c32a788868773baf3b9915844ad5d48921355ba9ffc69c4abe74862d6d42",
+    //     "0x000041559a6a175510b204014690b80a9e791641b0f8648965dae8047265a638bd1f2be6f21b6da810505a0eea5b25e4cc8359bcb6af71d2");
     ec_basis_t five_basis = BASIS_FIVE;
     ibz_t a, b, c, d;
     digit_t x[NWORDS_ORDER] = {0}, y[NWORDS_ORDER] = {0};
@@ -110,8 +112,6 @@ int dlog_5_test() {
     ibz_init(&c); ibz_init(&d);
     ibz_rand_interval(&a, &ibz_const_zero, &TORSION_PLUS_5POWER);
     ibz_rand_interval(&b, &ibz_const_zero, &TORSION_PLUS_5POWER);
-    // ibz_set(&a, 0xbcdef1);
-    // ibz_set(&b, 0xabcdef);
 
     ibz_to_digits(x, &a);
     ibz_to_digits(y, &b);

@@ -35,6 +35,14 @@ xTPL(ec_point_t *Q, const ec_point_t *P, const ec_point_t *A3)
     fp2_mul(&Q->z, &t1, &t0);
 }
 
+static void xMUL_FIVE(ec_point_t *Q, const ec_point_t *P, const ec_point_t *A3, const ec_point_t *A24)
+{
+    ec_point_t T1, T2;
+    xTPL(&T1, P, A3);
+    xDBL_A24(&T2, P, A24);
+    xADD(Q, &T2, &T1, P);
+}
+
 int
 ec_is_on_curve(const ec_curve_t *curve, const ec_point_t *P)
 {
@@ -696,6 +704,163 @@ ec_curve_to_basis_6(ec_basis_t *PQ6, const ec_curve_t *curve)
     difference_point(&PQ6->PmQ, &P, &Q, &E);
     copy_point(&PQ6->P, &P);
     copy_point(&PQ6->Q, &Q);
+}
+
+void
+ec_curve_to_basis_235(ec_basis_t *PQ235, const ec_curve_t *curve)
+{
+
+    fp2_t x, t0, t1, t2;
+    ec_point_t P, Q, Q6, P6, R, T, A24, A3, T1, T2;
+
+    // Curve coefficient in the form A24 = (A+2C:4C)
+    fp2_add(&A24.z, &curve->C, &curve->C);
+    fp2_add(&A24.x, &curve->A, &A24.z);
+    fp2_add(&A24.z, &A24.z, &A24.z);
+
+    // Curve coefficient in the form A3 = (A+2C:A-2C)
+    fp2_sub(&A3.z, &A24.x, &A24.z);
+    fp2_copy(&A3.x, &A24.x);
+
+    fp2_set_one(&x);
+
+    // Find P
+    while (1) {
+        fp_add(&(x.im), &(x.re), &(x.im));
+
+        // Check if point is rational
+        fp2_sqr(&t0, &curve->C);
+        fp2_mul(&t1, &t0, &x);
+        fp2_mul(&t2, &curve->A, &curve->C);
+        fp2_add(&t1, &t1, &t2);
+        fp2_mul(&t1, &t1, &x);
+        fp2_add(&t1, &t1, &t0);
+        fp2_mul(&t1, &t1, &x);
+        if (fp2_is_square(&t1)) {
+            fp2_copy(&P.x, &x);
+            fp2_set_one(&P.z);
+        } else
+            continue;
+
+        // Clear non-2 factors, non-3 factors and non-5 factors from the order
+        //xMULv2(&P, &P, p_cofactor_for_235fgh, (int)P_COFACTOR_FOR_235FGH_BITLENGTH, &A24);
+
+        // Check if point has order 2^f*3^g*5^h
+        copy_point(&P6, &P);
+        for (int i = 0; i < POWER_OF_2 - 1; i++)
+            xDBL_A24(&P6, &P6, &A24);
+        for (int i = 0; i < POWER_OF_3 - 1; i++)
+            xTPL(&P6, &P6, &A3);
+        for (int i = 0; i < POWER_OF_5 - 1; i++) {
+            xMUL_FIVE(&P6, &P6, &A3, &A24);
+        }
+        if (ec_is_zero(&P6))
+            continue;
+        xDBL_A24(&T, &P6, &A24);
+        xTPL(&T, &T, &A3);
+        if (ec_is_zero(&T))
+            continue;
+        xTPL(&T, &P6, &A3);
+        xMUL_FIVE(&T, &T,  &A3, &A24);
+        if (ec_is_zero(&T))
+            continue;
+        xMUL_FIVE(&T, &P6,  &A3, &A24);
+        xDBL_A24(&T, &T, &A24);
+        if (ec_is_zero(&T))
+            continue;
+        break;
+    }
+
+    // Find Q
+    while (1) {
+        fp_add(&(x.im), &(x.re), &(x.im));
+
+        // Check if point is rational
+        fp2_sqr(&t0, &curve->C);
+        fp2_mul(&t1, &t0, &x);
+        fp2_mul(&t2, &curve->A, &curve->C);
+        fp2_add(&t1, &t1, &t2);
+        fp2_mul(&t1, &t1, &x);
+        fp2_add(&t1, &t1, &t0);
+        fp2_mul(&t1, &t1, &x);
+        if (fp2_is_square(&t1)) {
+            fp2_copy(&Q.x, &x);
+            fp2_set_one(&Q.z);
+        } else
+            continue;
+
+        // Clear non-6 factors from the order
+        //xMULv2(&Q, &Q, p_cofactor_for_235fgh, (int)P_COFACTOR_FOR_235FGH_BITLENGTH, &A24);
+
+        // Check first if point has order 2^f*3^g
+        copy_point(&Q6, &Q);
+        for (int i = 0; i < POWER_OF_2 - 1; i++)
+            xDBL_A24(&Q6, &Q6, &A24);
+        for (int i = 0; i < POWER_OF_3 - 1; i++)
+            xTPL(&Q6, &Q6, &A3);
+        for (int i = 0; i < POWER_OF_5 - 1; i++) {
+            xMUL_FIVE(&Q6, &Q6, &A3, &A24);
+        }
+        if (ec_is_zero(&Q6))
+            continue;
+        xDBL_A24(&T, &Q6, &A24);
+        xTPL(&T, &T, &A3);
+        if (ec_is_zero(&T))
+            continue;
+        xTPL(&T, &Q6, &A3);
+        xMUL_FIVE(&T, &T,  &A3, &A24);
+        if (ec_is_zero(&T))
+            continue;
+        xMUL_FIVE(&T, &Q6,  &A3, &A24);
+        xDBL_A24(&T, &T, &A24);
+        if (ec_is_zero(&T))
+            continue;
+
+        // Check if point P is independent from point Q
+        xTPL(&R, &P6, &A3);
+        xTPL(&T, &Q6, &A3);
+        xDBL_A24(&R, &R, &A24);
+        xDBL_A24(&T, &T, &A24);
+        if (is_point_equal(&R, &T))
+            continue;
+        xDBL_A24(&R, &P6, &A24);
+        xDBL_A24(&T, &Q6, &A24);
+        xMUL_FIVE(&R, &R, &A3, &A24);
+        xMUL_FIVE(&T, &T, &A3, &A24);
+        if (is_point_equal(&R, &T))
+            continue;
+        xMUL_FIVE(&R, &P6, &A3, &A24);
+        xMUL_FIVE(&T, &Q6, &A3, &A24);
+        xTPL(&R, &R, &A3);
+        xTPL(&T, &T, &A3);
+        if (is_point_equal(&R, &T))
+            continue;
+        break;
+    }
+
+    // Normalize points
+    ec_curve_t E;
+    ec_curve_init(&E);
+
+    fp2_mul(&t0, &P.z, &Q.z);
+    fp2_mul(&t1, &t0, &curve->C);
+    fp2_inv(&t1);
+    fp2_mul(&P.x, &P.x, &t1);
+    fp2_mul(&Q.x, &Q.x, &t1);
+    fp2_mul(&E.A, &curve->A, &t1);
+    fp2_mul(&P.x, &P.x, &Q.z);
+    fp2_mul(&P.x, &P.x, &curve->C);
+    fp2_mul(&Q.x, &Q.x, &P.z);
+    fp2_mul(&Q.x, &Q.x, &curve->C);
+    fp2_mul(&E.A, &E.A, &t0);
+    fp2_set_one(&P.z);
+    fp2_copy(&Q.z, &P.z);
+    fp2_copy(&E.C, &P.z);
+
+    // Compute P-Q
+    difference_point(&PQ235->PmQ, &P, &Q, &E);
+    copy_point(&PQ235->P, &P);
+    copy_point(&PQ235->Q, &Q);
 }
 
 // New methods for basis generation using Entangled / ApresSQI like

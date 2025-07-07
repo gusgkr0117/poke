@@ -52,7 +52,10 @@ int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *
     ec_dlog_3(scalarP3, scalarQ3, &three_base, &R3, E);
     ec_point_t test_point;
     xDBLMUL(&test_point, &three_base.P, scalarP3, &three_base.Q, scalarQ3, &three_base.PmQ, E);
-    assert(ec_is_equal(&test_point, &R3));
+    if(!ec_is_equal(&test_point, &R3)) {
+        printf("Error: x*P + y*Q != R (3)\n");
+        return 0;
+    }
 
     copy_point(&R2, R);
     copy_point(&two_base.P, &base->P);
@@ -67,7 +70,10 @@ int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *
 
     ec_dlog_2(scalarP2, scalarQ2, &two_base, &R2, E);
     xDBLMUL(&test_point, &two_base.P, scalarP2, &two_base.Q, scalarQ2, &two_base.PmQ, E);
-    assert(ec_is_equal(&test_point, &R2));
+    if(!ec_is_equal(&test_point, &R2)) {
+        printf("Error: x*P + y*Q != R (2)\n");
+        return 0;
+    }
 
     // Chinese Remainder Theorem
     ibz_copy_digits(&iP3, scalarP3, NWORDS_ORDER);
@@ -82,12 +88,26 @@ int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *
 
     xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
     if(!ec_is_equal(&test_point, R)){
+        printf("fixed\n");
         ibz_copy_digits(&iP3, scalarP3, NWORDS_ORDER);
         ibz_copy_digits(&iQ3, scalarQ3, NWORDS_ORDER);
         ibz_mod(&iP3, &iP3, &TORSION_PLUS_3POWER);
-        ibz_sub(&iP3, &TORSION_PLUS_3POWER, &iP3);
         ibz_mod(&iQ3, &iQ3, &TORSION_PLUS_3POWER);
+        ibz_sub(&iP3, &TORSION_PLUS_3POWER, &iP3);
         ibz_sub(&iQ3, &TORSION_PLUS_3POWER, &iQ3);
+        gmp_printf("iP3: %Zd\n", &iP3);
+        gmp_printf("iQ3: %Zd\n", &iQ3);
+        ibz_to_digits(scalarP3, &iP3);
+        ibz_to_digits(scalarQ3, &iQ3);
+        xDBLMUL(&test_point, &three_base.P, scalarP3, &three_base.Q, scalarQ3, &three_base.PmQ, E);
+        if(!ec_is_equal(&test_point, &R3)) {
+            printf("Error: x*P + y*Q != R (3) double check..\n");
+            curve_print("E", *E);
+            point_print("R3", R3);
+            point_print("test_point", test_point);
+            return 0;
+        }
+
         ibz_crt(&iP3, &iP3, &iP2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
         ibz_crt(&iQ3, &iQ3, &iQ2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
         ibz_to_digits(scalarP, &iP3);
@@ -95,7 +115,13 @@ int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *
     }
     // Test if the computed scalars are correct
     xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
-    assert(ec_is_equal(&test_point, R));
+    if(!ec_is_equal(&test_point, R)) {
+        printf("Error: x*P + y*Q != R (final check)\n");
+        curve_print("E", *E);
+        point_print("R", *R);
+        point_print("test_point", test_point);
+        return 0;
+    }
 
     ibz_finalize(&t1);
     ibz_finalize(&t2);
@@ -104,6 +130,111 @@ int ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *
     ibz_finalize(&iQ3);
     ibz_finalize(&iP2);
     ibz_finalize(&iQ2);
+
+    return 1;
+}
+
+int ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, ec_basis_t *base, ec_point_t *R, ec_curve_t *E) {
+    ec_basis_t six_base, five_base;
+    ec_point_t R6, R5;
+    digit_t scalarP6[NWORDS_ORDER], scalarQ6[NWORDS_ORDER];
+    digit_t scalarP5[NWORDS_ORDER], scalarQ5[NWORDS_ORDER];
+    ibz_t iP6, iQ6, iP5, iQ5, t1, t2, t3;
+
+    ibz_init(&iP6);
+    ibz_init(&iQ6);
+    ibz_init(&iP5);
+    ibz_init(&iQ5);
+    ibz_init(&t1);
+    ibz_init(&t2);
+    ibz_init(&t3);
+
+    copy_point(&R6, R);
+    copy_point(&six_base.P, &base->P);
+    copy_point(&six_base.Q, &base->Q);
+    copy_point(&six_base.PmQ, &base->PmQ);
+    for(int i = 0; i < POWER_OF_5; i++) {
+        ec_mul_ibz(&R6, E, &ibz_const_five, &R6);
+        ec_mul_ibz(&six_base.P, E, &ibz_const_five, &six_base.P);
+        ec_mul_ibz(&six_base.Q, E, &ibz_const_five, &six_base.Q);
+        ec_mul_ibz(&six_base.PmQ, E, &ibz_const_five, &six_base.PmQ);
+    }
+
+    ec_dlog_6(scalarP6, scalarQ6, &six_base, &R6, E);
+    ec_point_t test_point;
+    xDBLMUL(&test_point, &six_base.P, scalarP6, &six_base.Q, scalarQ6, &six_base.PmQ, E);
+    if(!ec_is_equal(&test_point, &R6)) {
+        printf("Error: x*P + y*Q != R (6)\n");
+        return 0;
+    }
+
+    copy_point(&R5, R);
+    copy_point(&five_base.P, &base->P);
+    copy_point(&five_base.Q, &base->Q);
+    copy_point(&five_base.PmQ, &base->PmQ);
+    for(int i = 0; i < POWER_OF_3; i++) {
+        ec_mul_ibz(&R5, E, &ibz_const_three, &R5);
+        ec_mul_ibz(&five_base.P, E, &ibz_const_three, &five_base.P);
+        ec_mul_ibz(&five_base.Q, E, &ibz_const_three, &five_base.Q);
+        ec_mul_ibz(&five_base.PmQ, E, &ibz_const_three, &five_base.PmQ);
+    }
+
+    for(int i = 0; i < POWER_OF_2; i++) {
+        ec_dbl(&R5, E, &R5);
+        ec_dbl(&five_base.P, E, &five_base.P);
+        ec_dbl(&five_base.Q, E, &five_base.Q);
+        ec_dbl(&five_base.PmQ, E, &five_base.PmQ);
+    }
+
+    ec_dlog_5(scalarP5, scalarQ5, &five_base, &R5, E);
+    xDBLMUL(&test_point, &five_base.P, scalarP5, &five_base.Q, scalarQ5, &five_base.PmQ, E);
+    if(!ec_is_equal(&test_point, &R5)) {
+        printf("Error: x*P + y*Q != R (5)\n");
+        curve_print("E", *E);
+        point_print("R5", R5);
+        point_print("test_point", test_point);
+        return 0;
+    }
+
+    // Chinese Remainder Theorem
+    ibz_copy_digits(&iP6, scalarP6, NWORDS_ORDER);
+    ibz_copy_digits(&iQ6, scalarQ6, NWORDS_ORDER);
+    ibz_copy_digits(&iP5, scalarP5, NWORDS_ORDER);
+    ibz_copy_digits(&iQ5, scalarQ5, NWORDS_ORDER);
+
+    ibz_crt(&iP6, &iP6, &iP5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+    ibz_crt(&iQ6, &iQ6, &iQ5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+    ibz_to_digits(scalarP, &iP6);
+    ibz_to_digits(scalarQ, &iQ6);
+
+    xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    if(!ec_is_equal(&test_point, R)){
+        ibz_copy_digits(&iP6, scalarP6, NWORDS_ORDER);
+        ibz_copy_digits(&iQ6, scalarQ6, NWORDS_ORDER);
+        ibz_mod(&iP6, &iP6, &TORSION_PLUS_23POWER);
+        ibz_sub(&iP6, &TORSION_PLUS_23POWER, &iP6);
+        ibz_mod(&iQ6, &iQ6, &TORSION_PLUS_23POWER);
+        ibz_sub(&iQ6, &TORSION_PLUS_23POWER, &iQ6);
+        ibz_crt(&iP6, &iP6, &iP5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+        ibz_crt(&iQ6, &iQ6, &iQ5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+        ibz_to_digits(scalarP, &iP6);
+        ibz_to_digits(scalarQ, &iQ6);
+    }
+    // Test if the computed scalars are correct
+    xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    if (!ec_is_equal(&test_point, R)) {
+        printf("Error: x*P + y*Q != R (235)\n");
+        return 0;
+    }
+    // assert(ec_is_equal(&test_point, R));
+
+    ibz_finalize(&t1);
+    ibz_finalize(&t2);
+    ibz_finalize(&t3);
+    ibz_finalize(&iP6);
+    ibz_finalize(&iQ6);
+    ibz_finalize(&iP5);
+    ibz_finalize(&iQ5);
 
     return 1;
 }
@@ -128,7 +259,10 @@ int eval_dimtwo_isog(theta_chain_t *phi, ec_basis_t *evalPQ, ec_basis_t *PQ, the
     copy_point(&imPQ, &output_points.P1);
 
     ec_basis_t RS;
-    ec_curve_to_basis_6(&RS, &E01->E2);
+    ec_curve_to_basis_235(&RS, &E01->E2);
+    curve_print("RS basis", E01->E2);
+    point_print("RS basis", RS.P);
+    point_print("RS basis", RS.Q);
 
     input_points.P2 = RS.P;
     ec_set_zero(&input_points.P1);
@@ -154,7 +288,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ec_basis_t *evalPQ, ec_basis_t *PQ, the
     jac_point_t evalP, evalQ, evalPmQ;
     lift_basis(&jacR, &jacS, &RS, &E01->E2);
 
-    ec_dlog_6(x, y, &imRS_basis, &imP, &phi->codomain.E1);
+    ec_dlog_235(x, y, &imRS_basis, &imP, &phi->codomain.E1);
     ec_point_t test_point;
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &imP)) {
@@ -163,7 +297,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ec_basis_t *evalPQ, ec_basis_t *PQ, the
     }
 
     DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_FIELD);
-    ec_dlog_6(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
+    ec_dlog_235(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &imQ)) {
         printf("x*R + y*S != imQ\n");
@@ -231,7 +365,7 @@ int test() {
     // gmp_printf("nrd(tau) : %Qd\n", tau_norm);
     // gmp_printf("rhs : %Zd\n", rhs);
 
-    ec_basis_t E0_two, E0_three;
+    ec_basis_t E0_two, E0_three, E0_five;
     copy_point(&E0_two.P, &BASIS_EVEN.P);
     copy_point(&E0_two.Q, &BASIS_EVEN.Q);
     copy_point(&E0_two.PmQ, &BASIS_EVEN.PmQ);
@@ -346,17 +480,20 @@ int test() {
     copy_point(&E0_three.P, &BASIS_THREE.P);
     copy_point(&E0_three.Q, &BASIS_THREE.Q);
     copy_point(&E0_three.PmQ, &BASIS_THREE.PmQ);
+    copy_point(&E0_five.P, &BASIS_FIVE.P);
+    copy_point(&E0_five.Q, &BASIS_FIVE.Q);
+    copy_point(&E0_five.PmQ, &BASIS_FIVE.PmQ);
 
     lift_basis(&P, &Q, &E0_two, &curve);
     lift_basis(&R, &S, &E0_three, &curve);
+    lift_basis(&X, &Y, &E0_five, &curve);
 
-    // lift_basis(&X, &Y, &BASIS_FIVE, &curve);
     // P23x = P + R + X and Q23x = Q + S + Y
     jac_point_t P23x, Q23x, PmQ23x;
     ADD(&P23x, &P, &R, &curve);
-    // ADD(&P23x, &P23x, &X, &curve);
+    ADD(&P23x, &P23x, &X, &curve);
     ADD(&Q23x, &Q, &S, &curve);
-    // ADD(&Q23x, &Q23x, &Y, &curve);
+    ADD(&Q23x, &Q23x, &Y, &curve);
     ADD(&PmQ23x, &P23x, &Q23x, &curve);
 
     ec_basis_t eval_points, imPQ23x;
@@ -365,6 +502,16 @@ int test() {
     jac_to_xz(&eval_points.PmQ, &PmQ23x);
     
     eval_dimtwo_isog(&hd_isog, &imPQ23x, &eval_points, &E01);
+
+    ec_basis_t XY_A_basis;
+    ibz_t XY_cofactor;
+    ibz_init(&XY_cofactor);
+    ibz_invmod(&XY_cofactor, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+    ibz_mul(&XY_cofactor, &XY_cofactor, &TORSION_PLUS_5POWER);
+    ibz_mul(&XY_cofactor, &XY_cofactor, &delta);
+    ec_mul_ibz(&XY_A_basis.P, &curve, &XY_cofactor, &imPQ23x.P);
+    ec_mul_ibz(&XY_A_basis.Q, &curve, &XY_cofactor, &imPQ23x.Q);
+    ec_mul_ibz(&XY_A_basis.PmQ, &curve, &XY_cofactor, &imPQ23x.PmQ);
 
     printf("Succeed\n");
 
