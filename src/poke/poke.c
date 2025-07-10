@@ -1,3 +1,4 @@
+#include "curve_extras.h"
 #include <poke.h>
 #include <hd.h>
 #include <endomorphism_action.h>
@@ -10,6 +11,29 @@
 #include <rng.h>
 #include <id2iso.h>
 #include <biextension.h>
+#include <fips202.h>
+
+int ibz_random_matrix(ibz_mat_2x2_t mat22, const ibz_t *modulus) {
+    ibz_t gcd, det;
+    ibz_init(&gcd);
+    ibz_init(&det);
+    while (1) {
+        ibz_rand_interval(&mat22[0][0], &ibz_const_zero, modulus);
+        ibz_rand_interval(&mat22[0][1], &ibz_const_zero, modulus);
+        ibz_rand_interval(&mat22[1][0], &ibz_const_zero, modulus);
+        ibz_rand_interval(&mat22[1][1], &ibz_const_zero, modulus);
+        ibz_mul(&det, &mat22[0][0], &mat22[1][1]);
+        ibz_mul(&gcd, &mat22[0][1], &mat22[1][0]);
+        ibz_sub(&det, &det, &gcd);
+        ibz_gcd(&gcd, &det, modulus);
+        if (ibz_is_one(&gcd)) {
+            break;
+        }
+    }
+    ibz_finalize(&gcd);
+    ibz_finalize(&det);
+    return 1;
+}
 
 int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
     ibz_t gcd;
@@ -208,7 +232,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
 
     ec_eval_odd_basis(&E1, &isog, &E0_two, 1);
 
-    curve_print("Image curve", E1);
+    // curve_print("Image curve", E1);
 
     // Evaluating the theta-based 2-dim isogeny
     theta_couple_curve_t E01;
@@ -324,7 +348,122 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     return 1; 
 }
 
-int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m) {
+int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m, const size_t m_len) {
+    ibz_mat_2x2_t mask_xy;
+    ec_isog_odd_t isogB, isogB_prime;
+    ibz_t beta, omega, omega_inv, TT;
+    ec_curve_t EB, EAB;
+    ec_basis_t E0_two, E0_xy, EA_two, EA_xy, EAB_xy;
+
+    digit_t beta_scalar[NWORDS_ORDER] = {0}, omega_scalar[NWORDS_ORDER] = {0}, omega_inv_scalar[NWORDS_ORDER] = {0}, one_scalar[NWORDS_ORDER] = {1};
+    digit_t mask_xy_scalar[6][NWORDS_ORDER] = {0};
+
+    ibz_init(&beta);
+    ibz_init(&omega);
+    ibz_init(&omega_inv);
+    ibz_init(&TT);
+    ibz_mat_2x2_init(&mask_xy);
+
+    ibz_random_unit(&beta, &TORSION_PLUS_3POWER);
+    ibz_random_unit(&omega, &TORSION_PLUS_2POWER);
+    ibz_invmod(&omega_inv, &omega, &TORSION_PLUS_2POWER);
+    ibz_to_digits(beta_scalar, &beta);
+    ibz_random_matrix(mask_xy, &TORSION_PLUS_5POWER);
+    for(int i = 0; i < 4; i++) {
+        ibz_to_digits(mask_xy_scalar[i], &mask_xy[i / 2][i % 2]);
+    }
+    ibz_sub(&TT, &mask_xy[0][0], &mask_xy[1][0]);
+    ibz_mod(&TT, &TT, &TORSION_PLUS_5POWER);
+    ibz_to_digits(mask_xy_scalar[4], &TT);
+    ibz_sub(&TT, &mask_xy[0][1], &mask_xy[1][1]);
+    ibz_mod(&TT, &TT, &TORSION_PLUS_5POWER);
+    ibz_to_digits(mask_xy_scalar[5], &TT);
+
+    copy_point(&E0_two.P, &BASIS_EVEN.P);
+    copy_point(&E0_two.Q, &BASIS_EVEN.Q);
+    copy_point(&E0_two.PmQ, &BASIS_EVEN.PmQ);
+    copy_point(&E0_xy.P, &BASIS_FIVE.P);
+    copy_point(&E0_xy.Q, &BASIS_FIVE.Q);
+    copy_point(&E0_xy.PmQ, &BASIS_FIVE.PmQ);
+    copy_point(&EA_two.P, &pk->PQ2.P);
+    copy_point(&EA_two.Q, &pk->PQ2.Q);
+    copy_point(&EA_two.PmQ, &pk->PQ2.PmQ);
+    copy_point(&EA_xy.P, &pk->PQxy.P);
+    copy_point(&EA_xy.Q, &pk->PQxy.Q);
+    copy_point(&EA_xy.PmQ, &pk->PQxy.PmQ);
+
+
+    // Compute the isogeny E0 -> EB
+    isogB.curve = CURVE_E0;
+    isogB.degree[0] = POWER_OF_3;
+    isogB.degree[1] = 0;
+    ec_set_zero(&isogB.ker_minus);
+    // kernel = P + beta * Q
+    xDBLMUL(&isogB.ker_plus, &BASIS_THREE.P, one_scalar, &BASIS_THREE.Q, beta_scalar, &BASIS_THREE.PmQ, &isogB.curve);
+    
+    ec_eval_odd_basis(&EB, &isogB, &E0_two, 1);
+    ec_eval_odd_basis(&EB, &isogB, &E0_xy, 1);
+
+    ct->EB = EB;
+
+    // Masking evaluated basis points
+    xMUL(&ct->PQ2_B.P, &E0_two.P, omega_scalar, &EB);
+    xMUL(&ct->PQ2_B.Q, &E0_two.Q, omega_inv_scalar, &EB);
+    xDBLMUL(&ct->PQ2_B.PmQ, &E0_two.P, omega_scalar, &E0_two.Q, omega_inv_scalar, &E0_two.PmQ, &EB);
+
+    xDBLMUL(&ct->PQxy_B.P, &E0_xy.P, mask_xy_scalar[0], &E0_xy.Q, mask_xy_scalar[1], &E0_xy.PmQ, &EB);
+    xDBLMUL(&ct->PQxy_B.Q, &E0_xy.P, mask_xy_scalar[2], &E0_xy.Q, mask_xy_scalar[3], &E0_xy.PmQ, &EB);
+    xDBLMUL(&ct->PQxy_B.PmQ, &E0_xy.P, mask_xy_scalar[4], &E0_xy.Q, mask_xy_scalar[5], &E0_xy.PmQ, &EB);
+    printf("E0 -> EB isogeny computed\n");
+
+    // Compute the isogeny EA -> EAB
+    isogB_prime.curve = pk->EA;
+    isogB_prime.degree[0] = POWER_OF_3;
+    isogB_prime.degree[1] = 0;
+    ec_set_zero(&isogB_prime.ker_minus);
+    // kernel = P + beta * Q
+    xDBLMUL(&isogB_prime.ker_plus, &pk->PQ3.P, one_scalar, &pk->PQ3.Q, beta_scalar, &pk->PQ3.PmQ, &isogB_prime.curve);
+    
+    ec_eval_odd_basis(&EAB, &isogB_prime, &EA_two, 1);
+    ec_eval_odd_basis(&EAB, &isogB_prime, &EA_xy, 1);
+
+    ct->EAB = EAB;
+
+    // Masking evaluated basis points
+    xMUL(&ct->PQ2_AB.P, &EA_two.P, omega_scalar, &EAB);
+    xMUL(&ct->PQ2_AB.Q, &EA_two.Q, omega_inv_scalar, &EAB);
+    xDBLMUL(&ct->PQ2_AB.PmQ, &EA_two.P, omega_scalar, &EA_two.Q, omega_inv_scalar, &EA_two.PmQ, &EAB);
+
+    xDBLMUL(&EAB_xy.P, &EA_xy.P, mask_xy_scalar[0], &EA_xy.Q, mask_xy_scalar[1], &EA_xy.PmQ, &EAB);
+    xDBLMUL(&EAB_xy.Q, &EA_xy.P, mask_xy_scalar[2], &EA_xy.Q, mask_xy_scalar[3], &EA_xy.PmQ, &EAB);
+    xDBLMUL(&EAB_xy.PmQ, &EA_xy.P, mask_xy_scalar[4], &EA_xy.Q, mask_xy_scalar[5], &EA_xy.PmQ, &EAB);
+    printf("EA -> EAB isogeny computed\n");
+
+    // TODO : ct <- SHA256(EAB_xy.P || EAB_xy.Q) xor m
+    unsigned char hash_input[2 * NWORDS_FIELD * RADIX / 8];
+    unsigned char hash_output[2 * NWORDS_FIELD * RADIX / 8];
+    memcpy(hash_input, &EAB_xy.P.x, NWORDS_FIELD * RADIX / 8);
+    memcpy(hash_input + NWORDS_FIELD * RADIX / 8, &EAB_xy.Q.x, NWORDS_FIELD * RADIX / 8);
+
+    SHAKE256(hash_output, sizeof(hash_output), hash_input, sizeof(hash_input));
+    printf("hash output : ");
+    for (size_t i = 0; i < sizeof(hash_output); i++) {
+        printf("%02x", hash_output[i]);
+    }
+    printf("\n");
+
+    // ct->ct = m xor hash_output
+    size_t ct_len = m_len < sizeof(hash_output) ? m_len : sizeof(hash_output);
+    memset(ct->ct, 0, sizeof(ct->ct));
+    for (size_t i = 0; i < ct_len; i++) {
+        ct->ct[i] = m[i] ^ hash_output[i];
+    }
+
+    ibz_mat_2x2_finalize(&mask_xy);
+    ibz_finalize(&TT);
+    ibz_finalize(&beta);
+    ibz_finalize(&omega);
+    ibz_finalize(&omega_inv);
     return 1;
 }
 
@@ -332,8 +471,10 @@ int main() {
     int res = 1;
     poke_sk_t sk = {0};
     poke_pk_t pk;
+    poke_ct_t ct;
 
     keygen(&sk, &pk);
+    encrypt(&ct, &pk, "Hello, Poke!", 13);
 
     return res;
 }

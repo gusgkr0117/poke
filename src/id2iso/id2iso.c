@@ -519,7 +519,7 @@ void endomorphism_application_three_basis(ec_basis_t *bas, ec_curve_t *E, quat_a
     quat_alg_make_primitive(&coeffs, &content, theta, &MAXORD_O0, &QUATALG_PINFTY);
     assert(ibz_get(&content) % 2 == 1);
 
-    ibz_vec_4_print(&coeffs);
+    // ibz_vec_4_print(&coeffs);
 
     ibz_set(&mat[0][0], 0);
     ibz_set(&mat[0][1], 0);

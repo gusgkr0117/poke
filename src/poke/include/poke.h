@@ -48,4 +48,4 @@ typedef struct poke_ct_t {
 } poke_ct_t;
 
 int keygen(poke_sk_t *sk, poke_pk_t *pk);
-int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m);
+int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m, const size_t m_len);
