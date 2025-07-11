@@ -89,7 +89,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     imRS_basis.P = imR;
     imRS_basis.Q = imS;
     imRS_basis.PmQ = imRS;
-    digit_t x[NWORDS_FIELD], y[NWORDS_FIELD];
+    digit_t x[NWORDS_FIELD] = {0}, y[NWORDS_FIELD] = {0};
     jac_point_t jacR, jacS;
     jac_point_t evalP, evalQ, evalPmQ, pointT;
     ibz_t t1,t2,t3,t4;
@@ -111,12 +111,56 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     ibz_copy_digits(&t2, y, NWORDS_ORDER);
 
     DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
+
     ec_dlog_235(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
+    if (!ec_is_equal(&test_point, &imQ)) {
+        printf("x*R + y*S != imQ\n");
+        return 0;
+    }
     ibz_copy_digits(&t3, x, NWORDS_ORDER);
     ibz_copy_digits(&t4, y, NWORDS_ORDER);
 
     DBLMUL_generic(&evalQ, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
+
+    // Test if (t1 - t3) * imR + (t2 - t4) * imS = imP - imQ
+    // If not, evalQ = -evalQ
+    ibz_sub(&t1, &t1, &t3);
+    ibz_sub(&t2, &t2, &t4);
+    ibz_mod(&t1, &t1, &TORSION_PLUS_235POWER);
+    ibz_mod(&t2, &t2, &TORSION_PLUS_235POWER);
+    memset(x, 0, NWORDS_ORDER * RADIX / 8);
+    memset(y, 0, NWORDS_ORDER * RADIX / 8);
+    ibz_to_digits(x, &t1);
+    ibz_to_digits(y, &t2);
+    xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
+    if (!ec_is_equal(&test_point, &imPQ)) {
+        // test otherwise
+        ibz_add(&t1, &t1, &t3);
+        ibz_add(&t1, &t1, &t3);
+        ibz_add(&t2, &t2, &t4);
+        ibz_add(&t2, &t2, &t4);
+        ibz_mod(&t1, &t1, &TORSION_PLUS_235POWER);
+        ibz_mod(&t2, &t2, &TORSION_PLUS_235POWER);
+        memset(x, 0, NWORDS_ORDER * RADIX / 8);
+        memset(y, 0, NWORDS_ORDER * RADIX / 8);
+        ibz_to_digits(x, &t1);
+        ibz_to_digits(y, &t2);
+        xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
+        if (!ec_is_equal(&test_point, &imPQ)) {
+            printf("something wrong!!\n");
+            point_print("imP : ", imP);
+            point_print("imQ : ", imQ);
+            point_print("imPQ : ", imPQ);
+            point_print("imR : ", imRS_basis.P);
+            point_print("imS : ", imRS_basis.Q);
+            point_print("imRS : ", imRS_basis.PmQ);
+            curve_print("E1 : ", phi->codomain.E1);
+            exit(0);
+        }
+        jac_neg(&evalQ, &evalQ);
+    }
+
 
     jac_neg(&pointT, &evalQ);
     ADD(&evalPmQ, &evalP, &pointT, &E01->E2);
@@ -167,7 +211,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     ibz_to_digits(sk->beta, &beta);
     ibz_to_digits(sk->delta, &delta);
 
-    gmp_printf("q = %Zd\n", q);
+    // gmp_printf("q = %Zd\n", q);
 
     // gmp_printf("alpha = %Zd\n", alpha);
     // gmp_printf("beta = %Zd\n", beta);
@@ -460,8 +504,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m, const size_t m_le
 
     xDBLMUL(&ct->PQxy_B.P, &E0_xy.P, mask_xy_scalar[0], &E0_xy.Q, mask_xy_scalar[1], &E0_xy.PmQ, &EB);
     xDBLMUL(&ct->PQxy_B.Q, &E0_xy.P, mask_xy_scalar[2], &E0_xy.Q, mask_xy_scalar[3], &E0_xy.PmQ, &EB);
-    xADD(&pointT, &E0_xy.P, &E0_xy.Q, &E0_xy.PmQ);
-    xDBLMUL(&ct->PQxy_B.PmQ, &E0_xy.P, mask_xy_scalar[4], &E0_xy.Q, mask_xy_scalar[5], &pointT, &EB);
+    xDBLMUL(&ct->PQxy_B.PmQ, &E0_xy.P, mask_xy_scalar[4], &E0_xy.Q, mask_xy_scalar[5], &E0_xy.PmQ, &EB);
     printf("E0 -> EB isogeny computed\n");
 
     // Compute the isogeny EA -> EAB
@@ -493,17 +536,12 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m, const size_t m_le
 
     xDBLMUL(&EAB_xy.P, &EA_xy.P, mask_xy_scalar[0], &EA_xy.Q, mask_xy_scalar[1], &EA_xy.PmQ, &EAB);
     xDBLMUL(&EAB_xy.Q, &EA_xy.P, mask_xy_scalar[2], &EA_xy.Q, mask_xy_scalar[3], &EA_xy.PmQ, &EAB);
-    xADD(&pointT, &EA_xy.P, &EA_xy.Q, &EA_xy.PmQ);
-    xDBLMUL(&EAB_xy.PmQ, &EA_xy.P, mask_xy_scalar[4], &EA_xy.Q, mask_xy_scalar[5], &pointT, &EAB);
+    xDBLMUL(&EAB_xy.PmQ, &EA_xy.P, mask_xy_scalar[4], &EA_xy.Q, mask_xy_scalar[5], &EA_xy.PmQ, &EAB);
     printf("EA -> EAB isogeny computed\n");
 
     // TODO : ct <- SHA256(EAB_xy.P || EAB_xy.Q) xor m
     unsigned char hash_input[4 * NWORDS_FIELD * RADIX / 8] = {0};
     unsigned char hash_output[32] = {0};
-
-    point_print("EAB_xy.P : ", EAB_xy.P);
-    point_print("EAB_xy.Q : ", EAB_xy.Q);
-    curve_print("EAB curve : ", EAB);
 
     ec_normalize_point(&EAB_xy.P);
     ec_normalize_point(&EAB_xy.Q);
@@ -512,25 +550,18 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m, const size_t m_le
     memcpy(hash_input + NWORDS_FIELD * RADIX / 8, &EAB_xy.P.x.im[0], NWORDS_FIELD * RADIX / 8);
     memcpy(hash_input + 2 * NWORDS_FIELD * RADIX / 8, &EAB_xy.Q.x.re[0], NWORDS_FIELD * RADIX / 8);
     memcpy(hash_input + 3 * NWORDS_FIELD * RADIX / 8, &EAB_xy.Q.x.im[0], NWORDS_FIELD * RADIX / 8);
-
-    printf("hash_input : ");
-    for(int i = 0; i < sizeof(hash_input); i++) {
-        printf("%02x", hash_input[i]);
-    }
-    printf("\n");
     
 
     SHAKE256(hash_output, sizeof(hash_output), hash_input, sizeof(hash_input));
-    printf("hash output : ");
-    for (size_t i = 0; i < sizeof(hash_output); i++) {
-        printf("%02x", hash_output[i]);
-    }
-    printf("\n");
 
     // ct->ct = m xor hash_output
     memset(ct->ct, 0, sizeof(ct->ct));
     for (size_t i = 0; i < 32; i++) {
-        ct->ct[i] = m[i] ^ hash_output[i];
+        if (i >= m_len) {
+            ct->ct[i] = hash_output[i];
+        } else {
+            ct->ct[i] = m[i] ^ hash_output[i];
+        }
     }
 
     ibz_mat_2x2_finalize(&mask_xy);
@@ -617,10 +648,6 @@ int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_
     xMUL(&eval_points.Q, &eval_points.Q, sk->delta, &EBAB.E2);
     xMUL(&eval_points.PmQ, &eval_points.PmQ, sk->delta, &EBAB.E2);
 
-    point_print("eval_points.P : ", eval_points.P);
-    point_print("eval_points.Q : ", eval_points.Q);
-    curve_print("EBAB.E2 : ", EBAB.E2);
-
     ec_normalize_point(&eval_points.P);
     ec_normalize_point(&eval_points.Q);
 
@@ -629,26 +656,14 @@ int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_
     memcpy(hash_input + 2 * NWORDS_FIELD * RADIX / 8, &eval_points.Q.x.re[0], NWORDS_FIELD * RADIX / 8);
     memcpy(hash_input + 3 * NWORDS_FIELD * RADIX / 8, &eval_points.Q.x.im[0], NWORDS_FIELD * RADIX / 8);
 
-    printf("hash_input : ");
-    for(int i = 0; i < sizeof(hash_input); i++) {
-        printf("%02x", hash_input[i]);
-    }
-    printf("\n");
-
     SHAKE256(hash_output, sizeof(hash_output), hash_input, sizeof(hash_input));
-    printf("hash output : ");
-    for (size_t i = 0; i < sizeof(hash_output); i++) {
-        printf("%02x", hash_output[i]);
-    }
-    printf("\n");
 
     // m = ct->ct xor hash_output
-    size_t ct_len = sizeof(ct->ct) < sizeof(hash_output) ? sizeof(ct->ct) : sizeof(hash_output);
-    memset(m, 0, ct_len);
-    for (size_t i = 0; i < ct_len; i++) {
+    memset(m, 0, sizeof(hash_output));
+    for (size_t i = 0; i < sizeof(hash_output); i++) {
         m[i] = ct->ct[i] ^ hash_output[i];
     }
-    *m_len = ct_len;
+    *m_len = sizeof(hash_output);
 
     ibz_finalize(&alpha_inv);
     ibz_finalize(&beta_inv);
@@ -665,7 +680,7 @@ int main() {
     size_t m_len = 0;
 
     keygen(&sk, &pk);
-    encrypt(&ct, &pk, "Hello, Poke!", 13);
+    encrypt(&ct, &pk, "Hello, Poke! He He He", 23);
     printf("ct->ct :");
     for(int i = 0; i < 32; i++){
         printf("%02x", ct.ct[i]);
