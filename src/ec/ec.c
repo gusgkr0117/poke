@@ -1139,6 +1139,12 @@ ec_dlog_2(digit_t *scalarP,
     ec_curve_t curvenorm;
     ec_basis_t PQ2norm;
 
+    if (ec_is_zero(R)) {
+        memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+        return;
+    }
+
     ec_curve_init(&curvenorm);
 
     f = POWER_OF_2;
@@ -1670,6 +1676,12 @@ ec_dlog_3(digit_t *scalarP,
     ec_curve_t curvenorm;
     ec_basis_t PQ3norm;
 
+    if (ec_is_zero(R)) {
+        memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+        return;
+    }
+
     ec_curve_init(&curvenorm);
 
     f = POWER_OF_3;
@@ -1987,6 +1999,12 @@ void ec_dlog_5(digit_t *scalarP,
     ec_curve_t curvenorm;
     ec_basis_t PQ5norm;
 
+    if (ec_is_zero(R)) {
+        memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+        return;
+    }
+
     ec_curve_init(&curvenorm);
 
     f = POWER_OF_5;
@@ -2285,12 +2303,17 @@ void ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, con
         xMUL_FIVE(&six_base.PmQ, &six_base.PmQ, &A3, &A24);
     }
 
-    ec_dlog_6(scalarP6, scalarQ6, &six_base, &R6, E);
     ec_point_t test_point;
-    xDBLMUL(&test_point, &six_base.P, scalarP6, &six_base.Q, scalarQ6, &six_base.PmQ, E);
-    if(!ec_is_equal(&test_point, &R6)) {
-        printf("Error: x*P + y*Q != R (6)\n");
-        return;
+    if (ec_is_zero(&R6)) {
+        memset(scalarP6, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ6, 0, NWORDS_ORDER * RADIX / 8);
+    } else {
+        ec_dlog_6(scalarP6, scalarQ6, &six_base, &R6, E);
+        xDBLMUL(&test_point, &six_base.P, scalarP6, &six_base.Q, scalarQ6, &six_base.PmQ, E);
+        if(!ec_is_equal(&test_point, &R6)) {
+            printf("Error: x*P + y*Q != R (6)\n");
+            return;
+        }
     }
 
     copy_point(&R5, R);
