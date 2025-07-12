@@ -430,7 +430,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     return 1; 
 }
 
-int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m, const size_t m_len) {
+int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const size_t m_len) {
     ibz_mat_2x2_t mask_xy;
     ec_isog_odd_t isogB, isogB_prime;
     ibz_t beta, omega, omega_inv, TT, A;
@@ -505,7 +505,6 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m, const size_t m_le
     xDBLMUL(&ct->PQxy_B.P, &E0_xy.P, mask_xy_scalar[0], &E0_xy.Q, mask_xy_scalar[1], &E0_xy.PmQ, &EB);
     xDBLMUL(&ct->PQxy_B.Q, &E0_xy.P, mask_xy_scalar[2], &E0_xy.Q, mask_xy_scalar[3], &E0_xy.PmQ, &EB);
     xDBLMUL(&ct->PQxy_B.PmQ, &E0_xy.P, mask_xy_scalar[4], &E0_xy.Q, mask_xy_scalar[5], &E0_xy.PmQ, &EB);
-    printf("E0 -> EB isogeny computed\n");
 
     // Compute the isogeny EA -> EAB
     isogB_prime.curve = pk->EA;
@@ -537,7 +536,6 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const char *m, const size_t m_le
     xDBLMUL(&EAB_xy.P, &EA_xy.P, mask_xy_scalar[0], &EA_xy.Q, mask_xy_scalar[1], &EA_xy.PmQ, &EAB);
     xDBLMUL(&EAB_xy.Q, &EA_xy.P, mask_xy_scalar[2], &EA_xy.Q, mask_xy_scalar[3], &EA_xy.PmQ, &EAB);
     xDBLMUL(&EAB_xy.PmQ, &EA_xy.P, mask_xy_scalar[4], &EA_xy.Q, mask_xy_scalar[5], &EA_xy.PmQ, &EAB);
-    printf("EA -> EAB isogeny computed\n");
 
     // TODO : ct <- SHA256(EAB_xy.P || EAB_xy.Q) xor m
     unsigned char hash_input[4 * NWORDS_FIELD * RADIX / 8] = {0};
@@ -671,29 +669,29 @@ int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_
     return 1;
 }
 
-int main() {
-    int res = 1;
-    poke_sk_t sk = {0};
-    poke_pk_t pk;
-    poke_ct_t ct;
-    unsigned char m[128] = {0};
-    size_t m_len = 0;
+// int main() {
+//     int res = 1;
+//     poke_sk_t sk = {0};
+//     poke_pk_t pk;
+//     poke_ct_t ct;
+//     unsigned char m[128] = {0};
+//     size_t m_len = 0;
 
-    keygen(&sk, &pk);
-    encrypt(&ct, &pk, "Hello, Poke! He He He", 23);
-    printf("ct->ct :");
-    for(int i = 0; i < 32; i++){
-        printf("%02x", ct.ct[i]);
-    }
-    printf("\n");
-    decrypt(m, &m_len, &ct, &sk);
+//     keygen(&sk, &pk);
+//     encrypt(&ct, &pk, "Hello, Poke! He He He", 23);
+//     printf("ct->ct :");
+//     for(int i = 0; i < 32; i++){
+//         printf("%02x", ct.ct[i]);
+//     }
+//     printf("\n");
+//     decrypt(m, &m_len, &ct, &sk);
 
-    printf("m :");
-    for(int i = 0; i < m_len; i++){
-        printf("%02x", m[i]);
-    }
-    printf("\n");
-    printf("%s\n", m);
+//     printf("m :");
+//     for(int i = 0; i < m_len; i++){
+//         printf("%02x", m[i]);
+//     }
+//     printf("\n");
+//     printf("%s\n", m);
 
-    return res;
-}
+//     return res;
+// }

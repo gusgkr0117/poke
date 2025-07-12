@@ -7,7 +7,14 @@
 cd build
 cmake ..
 make precomp
-src/poke/poke_test
+make
+ctest -V -R poke-test
+```
+## Output
+```bash
+keygen takes .................................... 208.235213 msec
+encrypt takes .................................... 112.797798 msec
+decrypt takes .................................... 44.286976 msec
 ```
 
 # Reference
