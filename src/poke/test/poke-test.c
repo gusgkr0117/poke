@@ -1,6 +1,7 @@
 #include <poke.h>
 #include <time.h>
 #include <stdlib.h>
+#include <rng.h>
 
 #define BENCH_LOOPS 10
 
@@ -16,20 +17,21 @@ int test_poke() {
     poke_sk_t sk = {0};
     poke_pk_t pk = {0};
     poke_ct_t ct = {0};
-    unsigned char m[128] = "Hello, Poke! He He He";
-    unsigned char dec_m[128] = {0};
+    unsigned char m[32] = {0};
+    unsigned char dec_m[32] = {0};
     size_t m_len = 0;
     uint64_t cycles1, cycles2;
     uint64_t cycle_runs[3] = {0};
 
     for(int i = 0; i < BENCH_LOOPS; i++) {
+        randombytes(m, 32);
         cycles1 = cpucycles();
         keygen(&sk, &pk);
         cycles2 = cpucycles();
         cycle_runs[0] += cycles2 - cycles1;
         
         cycles1 = cpucycles();
-        encrypt(&ct, &pk, m, 23);
+        encrypt(&ct, &pk, m, 32);
         cycles2 = cpucycles();
         cycle_runs[1] += cycles2 - cycles1;
 
