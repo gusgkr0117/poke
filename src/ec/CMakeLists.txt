@@ -5,7 +5,7 @@ set(SOURCE_FILES_EC
     xeval.c
     isog_chains.c
     basis.c
-    bitextension.c
+    biextension.c
 )
 
 add_library(lib_ec ${SOURCE_FILES_EC})

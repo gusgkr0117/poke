@@ -242,7 +242,7 @@ bench_old_basis_generation(unsigned int n)
         cycle_runs[i] = cycles2 - cycles1;
     }
     qsort(cycle_runs + 10, 10, sizeof cycle_runs[0], cmp_u64);
-    printf("  2^%d torsion generation takes .................................... %llu cycles\n",
+    printf("  2^%d torsion generation takes .................................... %lu cycles\n",
            n,
            cycle_runs[4] / (BENCH_LOOPS));
 }
@@ -274,7 +274,7 @@ bench_new_basis_generation(unsigned int n)
         cycle_runs[i] = cycles2 - cycles1;
     }
     qsort(cycle_runs + 10, 10, sizeof cycle_runs[0], cmp_u64);
-    printf("  2^%d torsion generation takes .................................... %llu cycles\n",
+    printf("  2^%d torsion generation takes .................................... %lu cycles\n",
            n,
            cycle_runs[4] / (BENCH_LOOPS));
 }
@@ -309,7 +309,7 @@ bench_old_basis_generation_from_hint(unsigned int n)
         cycle_runs[i] = cycles2 - cycles1;
     }
     qsort(cycle_runs + 10, 10, sizeof cycle_runs[0], cmp_u64);
-    printf("  2^%d torsion generation takes .................................... %llu cycles\n",
+    printf("  2^%d torsion generation takes .................................... %lu cycles\n",
            n,
            cycle_runs[4] / (BENCH_LOOPS));
 }
@@ -344,7 +344,7 @@ bench_new_basis_generation_from_hint(unsigned int n)
         cycle_runs[i] = cycles2 - cycles1;
     }
     qsort(cycle_runs + 10, 10, sizeof cycle_runs[0], cmp_u64);
-    printf("  2^%d torsion generation takes .................................... %llu cycles\n",
+    printf("  2^%d torsion generation takes .................................... %lu cycles\n",
            n,
            cycle_runs[4] / (BENCH_LOOPS));
 }
@@ -379,7 +379,7 @@ bench_old_basis_completion()
         cycle_runs[i] = cycles2 - cycles1;
     }
     qsort(cycle_runs + 10, 10, sizeof cycle_runs[0], cmp_u64);
-    printf("  2^%llu torsion completion takes .................................... %llu cycles\n",
+    printf("  2^%lu torsion completion takes .................................... %lu cycles\n",
            TORSION_PLUS_EVEN_POWER,
            cycle_runs[4] / (3 * BENCH_LOOPS));
 }
@@ -414,7 +414,7 @@ bench_new_basis_completion(unsigned int n)
         cycle_runs[i] = cycles2 - cycles1;
     }
     qsort(cycle_runs + 10, 10, sizeof cycle_runs[0], cmp_u64);
-    printf("  2^%d torsion completion takes .................................... %llu cycles\n",
+    printf("  2^%d torsion completion takes .................................... %lu cycles\n",
            n,
            cycle_runs[4] / (3 * BENCH_LOOPS));
 }
@@ -482,7 +482,7 @@ main(void)
     test_basis(1);
     if(test_complete_basis_generation(TORSION_PLUS_EVEN_POWER)) {
         printf("complete_basis_generation : success\n");
-        printf("torsion_plus_even_power : %d\n", TORSION_PLUS_EVEN_POWER);
+        printf("torsion_plus_even_power : %lu\n", TORSION_PLUS_EVEN_POWER);
     }
     /*
         bench_basis(0);

@@ -19,6 +19,8 @@ void xDBLADD(ec_point_t *R,
              ec_point_t const *PQ,
              ec_point_t const *A24);
 void xDBL(ec_point_t *Q, ec_point_t const *P, ec_point_t const *AC);
+void xTPL(ec_point_t *Q, const ec_point_t *P, const ec_point_t *A3);
+void xMUL_FIVE(ec_point_t *Q, const ec_point_t *P, const ec_point_t *A3, const ec_point_t *A24);
 void xMUL(ec_point_t *Q, ec_point_t const *P, digit_t const *k, ec_curve_t const *curve);
 void xDBLMUL(ec_point_t *S,
              ec_point_t const *P,

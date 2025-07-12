@@ -160,3 +160,17 @@ mp_mul2(digit_t *c, const digit_t *a, const digit_t *b)
     c[2] = t2[0];
     c[3] = t2[1];
 }
+
+void
+mp_mul_generic(digit_t *c, const digit_t *a, const digit_t b, unsigned int nwords)
+{
+    digit_t t[2], result[10] = {0,};
+    unsigned int carry = 0;
+    for(unsigned int i = 0; i < nwords - 1; i++){
+        MUL(t, a[i], b);
+        ADDC(result[i], carry, result[i], t[0], carry);
+        ADDC(result[i + 1], carry, result[i + 1], t[1], carry);
+    }
+
+    for(unsigned int i = 0; i < nwords ; i++) c[i] = result[i];
+}

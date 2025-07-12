@@ -364,6 +364,16 @@ void ec_curve_to_basis_3(ec_basis_t *PQ3, const ec_curve_t *curve);
 void ec_curve_to_basis_6(ec_basis_t *PQ6, const ec_curve_t *curve);
 
 /**
+ * @brief Generate a 2^f*3^g*5^h-torsion basis
+ *
+ * The algorithm is deterministic
+ *
+ * @param PQ6 the computed 2^f*3^g*5^h-torsion basis
+ * @param curve a curve
+ */
+void ec_curve_to_basis_235(ec_basis_t *PQ6, const ec_curve_t *curve);
+
+/**
  * @brief Compute the generalized dlog of R wrt the 2^f-basis PQ2
  *
  * Ensure that R = scalarP * P + scalarQ * Q
@@ -394,6 +404,55 @@ void ec_dlog_3(digit_t *scalarP,
                const ec_basis_t *PQ3,
                const ec_point_t *R,
                const ec_curve_t *curve);
+
+/**
+ * @brief Compute the generalized dlog of R wrt the 3^e-basis PQ3
+ *
+ * Ensure that R = scalarP * P + scalarQ * Q
+ *
+ * @param scalarP the computed dlog
+ * @param scalarQ the computed dlog
+ * @param PQ3 a 3^e-torsion basis
+ * @param R a point of order dividing 3^e
+ */
+void ec_dlog_5(digit_t *scalarP,
+               digit_t *scalarQ,
+               const ec_basis_t *PQ3,
+               const ec_point_t *R,
+               const ec_curve_t *curve);
+
+/**
+ * @brief Compute the generalized dlog of R wrt the 3^e-basis PQ3
+ *
+ * Ensure that R = scalarP * P + scalarQ * Q
+ *
+ * @param scalarP the computed dlog
+ * @param scalarQ the computed dlog
+ * @param base a 2^f*3^g-torsion basis
+ * @param R a point of order dividing 2^f*3^g
+ */
+void ec_dlog_6(digit_t *scalarP,
+               digit_t *scalarQ,
+               const ec_basis_t *base,
+               const ec_point_t *R,
+               const ec_curve_t *E);
+
+/**
+ * @brief Compute the generalized dlog of R wrt the 2^f*3^g*5^h-basis PQ
+ *
+ * Ensure that R = scalarP * P + scalarQ * Q
+ *
+ * @param scalarP the computed dlog
+ * @param scalarQ the computed dlog
+ * @param base a 2^f*3^g-torsion basis
+ * @param R a point of order dividing 2^f*3^g*5^h
+ */
+void ec_dlog_235(digit_t *scalarP,
+               digit_t *scalarQ,
+               const ec_basis_t *base,
+               const ec_point_t *R,
+               const ec_curve_t *E);
+
 /** @}
  */
 

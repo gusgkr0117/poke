@@ -85,12 +85,13 @@ def config():
         exit(-1)
     POWER_OF_2 = factorization[0][1]
     POWER_OF_3 = factorization[1][1]
+    POWER_OF_5 = factorization[2][1]
     Pfactors = [factor[0] for factor in factorization[1:] if factor[0] <= B]
 
     # factorization = factor(p-1)
     # Mfactors = [factor[0] for factor in factorization[1:] if factor[0] <= B]
     Mfactors = []
-    return p,POWER_OF_2,POWER_OF_3,Pfactors,Mfactors
+    return p,POWER_OF_2,POWER_OF_3,POWER_OF_5,Pfactors,Mfactors
 
 
 sys.setrecursionlimit(1500)
@@ -190,7 +191,7 @@ def optimised_strategy(n, M, S, I):
 
 
 if __name__ == '__main__':
-    p,POWER_OF_2,POWER_OF_3,Pfactors,Mfactors = config()
+    p,POWER_OF_2,POWER_OF_3,POWER_OF_5,Pfactors,Mfactors = config()
     PMfactors = Pfactors + Mfactors
 
     if p2==0 and q4==0:
@@ -204,6 +205,19 @@ if __name__ == '__main__':
     number_strategy_4_isog = POWER_OF_2//2+10
     number_strategy_dim2_isog = POWER_OF_2//2+10
 
+    # For Dlog_3
+    THREEe = 0
+    THREEpE = 1
+    while THREEpE * 3 < 2**64:
+        THREEpE *= 3
+        THREEe += 1
+
+    # For Dlog_5
+    FIVEe = 0
+    FIVEpE = 1
+    while FIVEpE * 5 < 2**64:
+        FIVEpE *= 5
+        FIVEe += 1
 
     f = open('include/ec_params.h', 'w')
     print("computing ec_params.h")
@@ -214,12 +228,18 @@ if __name__ == '__main__':
     f.write('\n')
     f.write(f'#define POWER_OF_2 {POWER_OF_2}\n')
     f.write(f'#define POWER_OF_3 {POWER_OF_3}\n')
+    f.write(f'#define POWER_OF_5 {POWER_OF_5}\n')
+    f.write(f'#define THREEe {THREEe}\n')
+    f.write(f'#define FIVEe {FIVEe}\n')
     f.write('\n')
     f.write(f'static digit_t TWOpF[NWORDS_ORDER] = {fp2str(2**POWER_OF_2, p)}; // Fp representation for the power of 2\n')
     f.write(f'static digit_t TWOpFm1[NWORDS_ORDER] = {fp2str(2**(POWER_OF_2-1), p)}; // Fp representation for half the power of 2\n')
-    f.write(f'static digit_t THREEpE[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3//2), p)}; // Approximate squareroot of the power of 3\n')
+    f.write(f'static digit_t THREEpE[NWORDS_ORDER] = {fp2str(THREEpE, p)}; // THREEpE = 3^THREEe < 2^64\n')
     f.write(f'static digit_t THREEpF[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3), p)}; // Fp representation for the power of 3\n')
+    f.write(f'static digit_t FIVEpE[NWORDS_ORDER] = {fp2str(FIVEpE, p)}; // FIVEpE = 5^FIVEe < 2^64\n')
+    f.write(f'static digit_t FIVEpF[NWORDS_ORDER] = {fp2str(5**(POWER_OF_5), p)}; // Fp representation for the power of 5\n')
     f.write(f'static digit_t THREEpFdiv2[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3)//2, p)}; // Floor of half the power of 3\n')
+    f.write(f'static digit_t FIVEpFdiv2[NWORDS_ORDER] = {fp2str(5**(POWER_OF_5)//2, p)}; // Floor of half the power of 5\n')
     f.write('\n')
     f.write('#define scaled 1 // unscaled (0) or scaled (1) remainder tree approach for squareroot velu\n')
     f.write('#define gap 83 // Degree above which we use squareroot velu reather than traditional\n')
@@ -241,6 +261,10 @@ if __name__ == '__main__':
     f.write('// p+1 divided by the powers of 2 and 3\n')
     f.write(f'static digit_t p_cofactor_for_6fg[{(((p+1)//3**POWER_OF_3//2**POWER_OF_2).bit_length()-1)//64+1}] = {fp2str((p+1)//3**POWER_OF_3//2**POWER_OF_2, (p+1)//3**POWER_OF_3//2**POWER_OF_2+1)};\n')
     f.write(f'#define P_COFACTOR_FOR_6FG_BITLENGTH {((p+1)//3**POWER_OF_3//2**POWER_OF_2).bit_length()}\n')
+    f.write('\n')
+    f.write('// p+1 divided by the powers of 2, 3 and 5\n')
+    f.write(f'static digit_t p_cofactor_for_235fgh[{(((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5).bit_length()-1)//64+1}] = {fp2str((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5, (p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5+1)};\n')
+    f.write(f'#define P_COFACTOR_FOR_235FGH_BITLENGTH {((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5).bit_length()}\n')
     f.write('\n')
     f.write('// Strategy for 4-isogenies\n')
     f.write(f'static int STRATEGY4[{number_strategy_dim2_isog}][{POWER_OF_2//2}]='+'{\n')

@@ -851,6 +851,17 @@ TPL(jac_point_t *Q, jac_point_t const *P, ec_curve_t const *AC)
 }
 
 void
+MUL_FIVE(jac_point_t *Q, jac_point_t const *P, ec_curve_t const *AC)
+{ // Naive tripling on a Montgomery curve, representation in Jacobian coordinates (X:Y:Z)
+  // corresponding to (X/Z^2,Y/Z^3) This version receives the coefficient value A
+    jac_point_t R;
+
+    DBL(&R, P, AC);
+    DBL(&R, &R, AC);
+    ADD(Q, P, &R, AC);
+}
+
+void
 recover_y(fp2_t *y, fp2_t const *Px, ec_curve_t const *curve)
 { // Recover y-coordinate of a point on the Montgomery curve y^2 = x^3 + Ax^2 + x
     fp2_t t0;
@@ -993,7 +1004,7 @@ ec_dlog_2_step(digit_t *x,
     *x = 0;
     *y = 0;
 
-    printf(" ec_dlog_2_step on size %d \n", f);
+    // printf(" ec_dlog_2_step on size %d \n", f);
 
     copy_jac_point(&P, &Pe2[f - 1]);
     copy_jac_point(&Q, &Qe2[f - 1]);
@@ -1112,7 +1123,7 @@ ec_dlog_2(digit_t *scalarP,
           const ec_curve_t *curve)
 { // Optimized implementation based on Montgomery formulas using Jacobian coordinates
 
-    printf(" ec_dlog_2 %d %d %d\n", POWER_OF_2, NWORDS_ORDER, RADIX);
+    // printf(" ec_dlog_2 %d %d %d\n", POWER_OF_2, NWORDS_ORDER, RADIX);
 
     int i;
     digit_t w0 = 0, z0 = 0, x0 = 0, y0 = 0, x1 = 0, y1 = 0, w1 = 0, z1 = 0, e, e1, f, f1, f2,
@@ -1127,6 +1138,12 @@ ec_dlog_2(digit_t *scalarP,
     ec_point_t Rnorm;
     ec_curve_t curvenorm;
     ec_basis_t PQ2norm;
+
+    if (ec_is_zero(R)) {
+        memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+        return;
+    }
 
     ec_curve_init(&curvenorm);
 
@@ -1277,8 +1294,8 @@ ec_dlog_2(digit_t *scalarP,
     } else {
         x0_p[0] = 0;
         y0_p[0] = 0;
-        x0_p[1] = 0x100;
-        y0_p[1] = 0x100;
+        x0_p[1] = 0x1;  // [Hotfix] Don't know why..
+        y0_p[1] = 0x1;  // [Hotfix] Don't know why..
         mp_mul2(&xx[0], &xx[0], &x0_p[0]);
         mp_mul2(&yy[0], &yy[0], &y0_p[0]);
     }
@@ -1647,14 +1664,23 @@ ec_dlog_3(digit_t *scalarP,
           const ec_curve_t *curve)
 { // Optimized implementation based on Montgomery formulas using Jacobian coordinates
     int i;
-    digit_t w0 = 0, z0 = 0, x0 = 0, y0 = 0, x1 = 0, y1 = 0, w1 = 0, z1 = 0, e, f, f1, f1div2;
+    digit_t w0 = 0, z0 = 0, x0 = 0, y0 = 0, x1 = 0, y1 = 0, w1 = 0, z1 = 0, e, e1, f, f1, f2, ediv2, f22;
     digit_t fp2[NWORDS_ORDER] = { 0 }, xx[NWORDS_ORDER] = { 0 }, yy[NWORDS_ORDER] = { 0 },
             ww[NWORDS_ORDER] = { 0 }, zz[NWORDS_ORDER] = { 0 };
-    jac_point_t P, Q, RR, TT, R2r0;
+    digit_t f22_p[NWORDS_ORDER] = { 0 }, w_p[NWORDS_ORDER] = { 0 }, z_p[NWORDS_ORDER] = { 0 },
+            x0_p[NWORDS_ORDER] = { 0 }, y0_p[NWORDS_ORDER] = { 0 }, w0_p[NWORDS_ORDER] = { 0 },
+            z0_p[NWORDS_ORDER] = { 0 };
+    jac_point_t P, Q, RR, TT, R2r0, R2r, R2r1;
     jac_point_t Pe3[POWER_OF_3], Qe3[POWER_OF_3], PQe3[POWER_OF_3];
     ec_point_t Rnorm;
     ec_curve_t curvenorm;
     ec_basis_t PQ3norm;
+
+    if (ec_is_zero(R)) {
+        memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+        return;
+    }
 
     ec_curve_init(&curvenorm);
 
@@ -1726,30 +1752,56 @@ ec_dlog_3(digit_t *scalarP,
         TPL(&PQe3[POWER_OF_3 - i - 2], &PQe3[POWER_OF_3 - i - 1], &curvenorm);
     }
 
-    e = f >> 1;
-    f1 = f - e;
-    copy_jac_point(&TT, &RR);
-    for (i = 0; i < (f - f1); i++) {
-        TPL(&TT, &TT, &curvenorm);
+    e = 0;
+    ediv2 = (THREEe >> 1);
+    while(e * THREEe + THREEe < f) {
+        copy_jac_point(&TT, &RR);
+        for (i = 0; i < f - e * THREEe - THREEe; i++) {
+            TPL(&TT, &TT, &curvenorm);
+        }
+
+        // w0, z0 <- dlog3(3^(f-(e+1)*THREEe)*R, f1, f1 div 2)
+        ec_dlog_3_step(&w0, &z0, &TT, (int)THREEe, (int)ediv2, &Pe3[0], &Qe3[0], &PQe3[0], &curvenorm);
+
+        // RR <- RR - (w0*Pe3[f-1] + z0*Qe3[f-1])
+        DBLMUL(&R2r0, &Pe3[f - e * THREEe - 1], w0, &Qe3[f - e * THREEe - 1], z0, &curvenorm);
+        jac_neg(&R2r0, &R2r0);
+        ADD(&RR, &RR, &R2r0, &curvenorm);
+
+        memset(ww, 0, NWORDS_ORDER * RADIX / 8);
+        memset(zz, 0, NWORDS_ORDER * RADIX / 8);
+        ww[0] = w0;
+        zz[0] = z0;
+        for(i = 0; i < e; i++) {
+            mp_mul_generic(&ww[0], &ww[0], THREEpE[0], NWORDS_ORDER);
+            mp_mul_generic(&zz[0], &zz[0], THREEpE[0], NWORDS_ORDER);
+        }
+        mp_add(scalarP, scalarP, &ww[0], NWORDS_ORDER);
+        mp_add(scalarQ, scalarQ, &zz[0], NWORDS_ORDER);
+        e ++;
     }
-    // w0, z0 <- dlog3(3^(f-f1)*R, f1, f1 div 2)
-    f1div2 = f1 >> 1;
-    ec_dlog_3_step(&w0, &z0, &TT, (int)f1, (int)f1div2, &Pe3[0], &Qe3[0], &PQe3[0], &curvenorm);
 
-    // R2r0 <- R2 - (w0*Pe3[f-1] + z0*Qe3[f-1])
-    DBLMUL(&R2r0, &Pe3[f - 1], w0, &Qe3[f - 1], z0, &curvenorm);
+    digit_t rest;
+    copy_jac_point(&TT, &RR);
+    rest = f - e * THREEe;
+    // w0, z0 <- dlog3(R, f1, f1 div 2)
+    ec_dlog_3_step(&w0, &z0, &TT, (int)rest, (int)(rest >> 1), &Pe3[0], &Qe3[0], &PQe3[0], &curvenorm);
+
+    // RR <- RR - (w0*Pe3[f-1] + z0*Qe3[f-1])
+    DBLMUL(&R2r0, &Pe3[f - e * THREEe - 1], w0, &Qe3[f - e * THREEe - 1], z0, &curvenorm);
     jac_neg(&R2r0, &R2r0);
-    ADD(&R2r0, &RR, &R2r0, &curvenorm);
-    ec_dlog_3_step(&x0, &y0, &R2r0, (int)e, (int)f1div2, &Pe3[0], &Qe3[0], &PQe3[0], &curvenorm);
+    ADD(&RR, &RR, &R2r0, &curvenorm);
 
-    xx[0] = x0;
-    yy[0] = y0;
+    memset(ww, 0, NWORDS_ORDER * RADIX / 8);
+    memset(zz, 0, NWORDS_ORDER * RADIX / 8);
     ww[0] = w0;
     zz[0] = z0;
-    mp_mul2(&xx[0], THREEpE, &xx[0]);
-    mp_add(scalarP, &xx[0], &ww[0], NWORDS_ORDER);
-    mp_mul2(&yy[0], THREEpE, &yy[0]);
-    mp_add(scalarQ, &yy[0], &zz[0], NWORDS_ORDER);
+    for(i = 0; i < e; i++) {
+        mp_mul_generic(&ww[0], &ww[0], THREEpE[0], NWORDS_ORDER);
+        mp_mul_generic(&zz[0], &zz[0], THREEpE[0], NWORDS_ORDER);
+    }
+    mp_add(scalarP, scalarP, &ww[0], NWORDS_ORDER);
+    mp_add(scalarQ, scalarQ, &zz[0], NWORDS_ORDER);
 
     // If scalarP > Floor(3^f/2) or (scalarQ > Floor(3^f/2) and scalarP = 0) then output -scalarP
     // mod 3^f, -scalarQ mod 3^f
@@ -1761,6 +1813,590 @@ ec_dlog_3(digit_t *scalarP,
         if (mp_is_zero(scalarQ, NWORDS_ORDER) != 1)
             mp_sub(scalarQ, THREEpF, scalarQ, NWORDS_ORDER);
     }
+}
+
+static void
+ec_dlog_5_step(digit_t *x,
+               digit_t *y,
+               const jac_point_t *R,
+               const int f,
+               const int B,
+               const jac_point_t *Pe5,
+               const jac_point_t *Qe5,
+               const jac_point_t *PQe5,
+               const ec_curve_t *curve)
+{ // Based on Montgomery formulas using Jacobian coordinates
+    int i, j;
+    digit_t value = 1;
+    jac_point_t P, Q, TT, SS, YY, Te[POWER_OF_5 / 2],
+        Re[POWER_OF_5 / 2]; // Storage could be reduced to e points
+    jac_point_t PQep0[5][5] ,PQxy[5][5], PQep1[5][5];
+
+    *x = 0;
+    *y = 0;
+
+    copy_jac_point(&P, &Pe5[f - 1]);
+    copy_jac_point(&Q, &Qe5[f - 1]);
+    copy_jac_point(&Re[f - 1], R);
+
+    for (i = 0; i < (f - 1); i++) {
+        MUL_FIVE(&Re[f - i - 2], &Re[f - i - 1], curve);
+    }
+
+    jac_init(&PQxy[0][0]);
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            jac_init(&PQxy[i][j]);
+            if (i > 0) {
+                ADD(&PQxy[i][j], &PQxy[i - 1][j], &P, curve);
+            } else if (j > 0) {
+                ADD(&PQxy[i][j], &PQxy[i][j - 1], &Q, curve);
+            }
+        }
+    }
+
+    jac_init(&PQep0[0][0]);
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            jac_init(&PQep0[i][j]);
+            if (i > 0) {
+                ADD(&PQep0[i][j], &PQep0[i - 1][j], &Pe5[0], curve);
+            } else if (j > 0) {
+                ADD(&PQep0[i][j], &PQep0[i][j - 1], &Qe5[0], curve);
+            }
+        }
+    }
+
+    jac_init(&PQep1[0][0]);
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            jac_init(&PQep1[i][j]);
+            if (i > 0) {
+                ADD(&PQep1[i][j], &PQep1[i - 1][j], &Pe5[1], curve);
+            } else if (j > 0) {
+                ADD(&PQep1[i][j], &PQep1[i][j - 1], &Qe5[1], curve);
+            }
+        }
+    }
+
+
+    bool chk = false;
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            if (is_jac_equal(&PQep0[i][j], &Re[0])) {
+                if (i + j == 0) {
+                    jac_init(&Te[0]);
+                    for (int k = 3; k <= B; k++) {
+                        jac_init(&Te[k - 1]);
+                    }
+                    copy_jac_point(&Re[0], &Re[1]);
+                } else {
+                    *x += i;
+                    *y += j;
+                    copy_jac_point(&Te[0], &PQxy[i][j]);
+                    for (int k = 3; k <= B; k++) {
+                        digit_t x = i, y = j;
+                        DBLMUL_generic(&Te[k - 1], &Pe5[k - 1], &x, &Qe5[k - 1], &y, curve, 1);
+                    }
+                    jac_neg(&TT, &PQep1[i][j]);
+                    ADD(&Re[0], &Re[1], &TT, curve);
+                }
+                chk = true;
+                break;
+            }
+        }
+        if (chk) {
+            break;
+        }
+    }
+
+    // iterations 3-B
+    for (i = 3; i <= B; i++) {
+        value *= 5;
+        jac_neg(&TT, &Te[i - 1]);
+        ADD(&TT, &Re[i - 1], &TT, curve); // TT <- Re[i-1]-T[i-1]
+        chk = false;
+        for (j = 0; j < 5; j++) {
+            for (int k = 0; k < 5; k ++) {
+                if (is_jac_equal(&PQep0[j][k], &Re[0])) {
+                    if (j + k == 0) {
+                        copy_jac_point(&Re[0], &TT);
+                    } else {
+                        *x += value * j;
+                        *y += value * k;
+                        digit_t z = j, t = k;
+                        DBLMUL_generic(&YY, &Pe5[f - i + 1], &z, &Qe5[f - i + 1], &t, curve, 1);
+                        ADD(&Te[0], &Te[0], &YY, curve);
+                        for (int l = i + 1; l <= B; l++) {
+                            DBLMUL_generic(&YY, &Pe5[l - i + 1], &z, &Qe5[l - i + 1], &t, curve, 1);
+                            ADD(&Te[l - 1], &Te[l - 1], &YY, curve);
+                        }
+                        jac_neg(&SS, &PQep1[j][k]);
+                        ADD(&Re[0], &TT, &SS, curve);
+                    }
+                    chk = true;
+                    break;
+                }
+            }
+            if (chk) {
+                break;
+            }
+        }
+    }
+
+    // Main Loop
+    for (i = B; i < f; i++) {
+        value *= 5;
+        chk = false;
+        for (j = 0; j < 5; j++) {
+            for (int k = 0; k < 5; k ++) {
+                if (is_jac_equal(&PQep0[j][k], &Re[0]) && k + j != 0) {
+                    *x += value * j;
+                    *y += value * k;
+                    copy_jac_point(&TT, &PQxy[j][k]);
+                    for (int l = 0; l < (i - 1); l++) {
+                        MUL_FIVE(&TT, &TT, curve);
+                    }
+                    ADD(&Te[0], &Te[0], &TT, curve);
+                    chk = true;
+                    break;
+                }
+            }
+            if (chk) {
+                break;
+            }
+        }
+        jac_neg(&TT, &Te[0]);
+        ADD(&Re[0], R, &TT, curve);
+        for (j = 0; j < (f - i - 1); j++) {
+            MUL_FIVE(&Re[0], &Re[0], curve);
+        }
+    }
+
+    value *= 5;
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 5; j++) {
+            if (is_jac_equal(&PQep0[i][j], &Re[0])) {
+                *x += value * i;
+                *y += value * j;
+                return;
+            }
+        }
+    }
+}
+
+void ec_dlog_5(digit_t *scalarP,
+          digit_t *scalarQ,
+          const ec_basis_t *PQ5,
+          const ec_point_t *R,
+          const ec_curve_t *curve)
+{
+    digit_t f = 0, e = 0, ediv2 = 0, w0 = 0, z0 = 0;
+    digit_t ww[NWORDS_ORDER] = { 0 }, zz[NWORDS_ORDER] = { 0 };
+    jac_point_t P, Q, RR, TT, R2r0;
+    jac_point_t Pe5[POWER_OF_5], Qe5[POWER_OF_5], PQe5[POWER_OF_5];
+    ec_point_t Rnorm;
+    ec_curve_t curvenorm;
+    ec_basis_t PQ5norm;
+
+    if (ec_is_zero(R)) {
+        memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+        return;
+    }
+
+    ec_curve_init(&curvenorm);
+
+    f = POWER_OF_5;
+    memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+    memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+
+    fp2_t D;
+    fp2_mul(&D, &PQ5->P.z, &PQ5->Q.z);
+    fp2_mul(&D, &D, &PQ5->PmQ.z);
+    fp2_mul(&D, &D, &R->z);
+    fp2_mul(&D, &D, &curve->C);
+    fp2_inv(&D);
+    fp2_set_one(&Rnorm.z);
+    fp2_copy(&PQ5norm.P.z, &Rnorm.z);
+    fp2_copy(&PQ5norm.Q.z, &Rnorm.z);
+    fp2_copy(&PQ5norm.PmQ.z, &Rnorm.z);
+    fp2_copy(&curvenorm.C, &Rnorm.z);
+    fp2_mul(&Rnorm.x, &R->x, &D);
+    fp2_mul(&Rnorm.x, &Rnorm.x, &PQ5->P.z);
+    fp2_mul(&Rnorm.x, &Rnorm.x, &PQ5->Q.z);
+    fp2_mul(&Rnorm.x, &Rnorm.x, &PQ5->PmQ.z);
+    fp2_mul(&Rnorm.x, &Rnorm.x, &curve->C);
+    fp2_mul(&PQ5norm.P.x, &PQ5->P.x, &D);
+    fp2_mul(&PQ5norm.P.x, &PQ5norm.P.x, &R->z);
+    fp2_mul(&PQ5norm.P.x, &PQ5norm.P.x, &PQ5->Q.z);
+    fp2_mul(&PQ5norm.P.x, &PQ5norm.P.x, &PQ5->PmQ.z);
+    fp2_mul(&PQ5norm.P.x, &PQ5norm.P.x, &curve->C);
+    fp2_mul(&PQ5norm.Q.x, &PQ5->Q.x, &D);
+    fp2_mul(&PQ5norm.Q.x, &PQ5norm.Q.x, &R->z);
+    fp2_mul(&PQ5norm.Q.x, &PQ5norm.Q.x, &PQ5->P.z);
+    fp2_mul(&PQ5norm.Q.x, &PQ5norm.Q.x, &PQ5->PmQ.z);
+    fp2_mul(&PQ5norm.Q.x, &PQ5norm.Q.x, &curve->C);
+    fp2_mul(&PQ5norm.PmQ.x, &PQ5->PmQ.x, &D);
+    fp2_mul(&PQ5norm.PmQ.x, &PQ5norm.PmQ.x, &R->z);
+    fp2_mul(&PQ5norm.PmQ.x, &PQ5norm.PmQ.x, &PQ5->P.z);
+    fp2_mul(&PQ5norm.PmQ.x, &PQ5norm.PmQ.x, &PQ5->Q.z);
+    fp2_mul(&PQ5norm.PmQ.x, &PQ5norm.PmQ.x, &curve->C);
+    fp2_mul(&curvenorm.A, &curve->A, &D);
+    fp2_mul(&curvenorm.A, &curvenorm.A, &R->z);
+    fp2_mul(&curvenorm.A, &curvenorm.A, &PQ5->P.z);
+    fp2_mul(&curvenorm.A, &curvenorm.A, &PQ5->Q.z);
+    fp2_mul(&curvenorm.A, &curvenorm.A, &PQ5->PmQ.z);
+
+    recover_y(&P.y, &PQ5norm.P.x, &curvenorm);
+    fp2_copy(&P.x, &PQ5norm.P.x);
+    fp2_copy(&P.z, &PQ5norm.P.z);
+    recover_y(&Q.y, &PQ5norm.Q.x, &curvenorm);
+    fp2_copy(&Q.x, &PQ5norm.Q.x);
+    fp2_copy(&Q.z, &PQ5norm.Q.z);
+    recover_y(&RR.y, &Rnorm.x, &curvenorm);
+    fp2_copy(&RR.x, &Rnorm.x);
+    fp2_copy(&RR.z, &Rnorm.z);
+
+    jac_neg(&TT, &Q);
+    ADD(&TT, &P, &TT, &curvenorm);
+    if (!is_jac_xz_equal(&TT, &PQ5norm.PmQ))
+        jac_neg(&Q, &Q);
+
+    // Computing torsion-2^f points, multiples of P, Q and P+Q
+    copy_jac_point(&Pe5[POWER_OF_5 - 1], &P);
+    copy_jac_point(&Qe5[POWER_OF_5 - 1], &Q);
+    ADD(&PQe5[POWER_OF_5 - 1], &P, &Q, &curvenorm); // P+Q
+
+    for (int i = 0; i < (POWER_OF_5 - 1); i++) {
+        MUL_FIVE(&Pe5[POWER_OF_5 - i - 2], &Pe5[POWER_OF_5 - i - 1], &curvenorm);
+        MUL_FIVE(&Qe5[POWER_OF_5 - i - 2], &Qe5[POWER_OF_5 - i - 1], &curvenorm);
+        MUL_FIVE(&PQe5[POWER_OF_5 - i - 2], &PQe5[POWER_OF_5 - i - 1], &curvenorm);
+    }
+
+    e = 0;
+    ediv2 = (FIVEe >> 1);
+    while(e * FIVEe + FIVEe < f) {
+        copy_jac_point(&TT, &RR);
+        for (int i = 0; i < f - e * FIVEe - FIVEe; i++) {
+            MUL_FIVE(&TT, &TT, &curvenorm);
+        }
+
+        // w0, z0 <- dlog5(5^(f-(e+1)*FIVEe)*R, f1, f1 div 2)
+        ec_dlog_5_step(&w0, &z0, &TT, (int)FIVEe, (int)ediv2, &Pe5[0], &Qe5[0], &PQe5[0], &curvenorm);
+
+        // RR <- RR - (w0*Pe5[f-1] + z0*Qe5[f-1])
+        DBLMUL(&R2r0, &Pe5[f - e * FIVEe - 1], w0, &Qe5[f - e * FIVEe - 1], z0, &curvenorm);
+        jac_neg(&R2r0, &R2r0);
+        ADD(&RR, &RR, &R2r0, &curvenorm);
+
+        memset(ww, 0, NWORDS_ORDER * RADIX / 8);
+        memset(zz, 0, NWORDS_ORDER * RADIX / 8);
+        ww[0] = w0;
+        zz[0] = z0;
+        for(int i = 0; i < e; i++) {
+            mp_mul_generic(&ww[0], &ww[0], FIVEpE[0], NWORDS_ORDER);
+            mp_mul_generic(&zz[0], &zz[0], FIVEpE[0], NWORDS_ORDER);
+        }
+        mp_add(scalarP, scalarP, &ww[0], NWORDS_ORDER);
+        mp_add(scalarQ, scalarQ, &zz[0], NWORDS_ORDER);
+        e ++;
+    }
+
+    digit_t rest;
+    copy_jac_point(&TT, &RR);
+    rest = f - e * FIVEe;
+    // w0, z0 <- dlog5(R, f1, f1 div 2)
+    ec_dlog_5_step(&w0, &z0, &TT, (int)rest, (int)(rest >> 1), &Pe5[0], &Qe5[0], &PQe5[0], &curvenorm);
+
+    // RR <- RR - (w0*Pe5[f-1] + z0*Qe5[f-1])
+    DBLMUL(&R2r0, &Pe5[f - e * FIVEe - 1], w0, &Qe5[f - e * FIVEe - 1], z0, &curvenorm);
+    jac_neg(&R2r0, &R2r0);
+    ADD(&RR, &RR, &R2r0, &curvenorm);
+
+    memset(ww, 0, NWORDS_ORDER * RADIX / 8);
+    memset(zz, 0, NWORDS_ORDER * RADIX / 8);
+    ww[0] = w0;
+    zz[0] = z0;
+    for(int i = 0; i < e; i++) {
+        mp_mul_generic(&ww[0], &ww[0], FIVEpE[0], NWORDS_ORDER);
+        mp_mul_generic(&zz[0], &zz[0], FIVEpE[0], NWORDS_ORDER);
+    }
+    mp_add(scalarP, scalarP, &ww[0], NWORDS_ORDER);
+    mp_add(scalarQ, scalarQ, &zz[0], NWORDS_ORDER);
+
+    // If scalarP > Floor(5^f/2) or (scalarQ > Floor(5^f/2) and scalarP = 0) then output -scalarP
+    // mod 5^f, -scalarQ mod 5^f
+    if (mp_compare(scalarP, FIVEpFdiv2, NWORDS_ORDER) == 1 ||
+        (mp_compare(scalarQ, FIVEpFdiv2, NWORDS_ORDER) == 1 &&
+         (mp_is_zero(scalarP, NWORDS_ORDER) == 1))) {
+        if (mp_is_zero(scalarP, NWORDS_ORDER) != 1)
+            mp_sub(scalarP, FIVEpF, scalarP, NWORDS_ORDER);
+        if (mp_is_zero(scalarQ, NWORDS_ORDER) != 1)
+            mp_sub(scalarQ, FIVEpF, scalarQ, NWORDS_ORDER);
+    }
+
+    return;
+}
+
+void ec_dlog_6(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, const ec_point_t *R, const ec_curve_t *E) {
+    ec_basis_t three_base, two_base;
+    ec_point_t R3, R2;
+    digit_t scalarP3[NWORDS_ORDER] = {0}, scalarQ3[NWORDS_ORDER] = {0};
+    digit_t scalarP2[NWORDS_ORDER] = {0}, scalarQ2[NWORDS_ORDER] = {0};
+    ibz_t iP3, iQ3, iP2, iQ2, t1, t2, t3;
+
+    ibz_init(&iP3);
+    ibz_init(&iQ3);
+    ibz_init(&iP2);
+    ibz_init(&iQ2);
+    ibz_init(&t1);
+    ibz_init(&t2);
+    ibz_init(&t3);
+
+    copy_point(&R3, R);
+    copy_point(&three_base.P, &base->P);
+    copy_point(&three_base.Q, &base->Q);
+    copy_point(&three_base.PmQ, &base->PmQ);
+    for(int i = 0; i < POWER_OF_2; i++) {
+        ec_dbl(&R3, E, &R3);
+        ec_dbl(&three_base.P, E, &three_base.P);
+        ec_dbl(&three_base.Q, E, &three_base.Q);
+        ec_dbl(&three_base.PmQ, E, &three_base.PmQ);
+    }
+
+    ec_dlog_3(scalarP3, scalarQ3, &three_base, &R3, E);
+    ec_point_t test_point;
+    xDBLMUL(&test_point, &three_base.P, scalarP3, &three_base.Q, scalarQ3, &three_base.PmQ, E);
+    if(!ec_is_equal(&test_point, &R3)) {
+        printf("Error: x*P + y*Q != R (3)\n");
+        return;
+    }
+
+    copy_point(&R2, R);
+    copy_point(&two_base.P, &base->P);
+    copy_point(&two_base.Q, &base->Q);
+    copy_point(&two_base.PmQ, &base->PmQ);
+    
+    ec_point_t A24, A3;
+
+    // Curve coefficient in the form A24 = (A+2C:4C)
+    fp2_add(&A24.z, &E->C, &E->C);
+    fp2_add(&A24.x, &E->A, &A24.z);
+    fp2_add(&A24.z, &A24.z, &A24.z);
+
+    // Curve coefficient in the form A3 = (A+2C:A-2C)
+    fp2_sub(&A3.z, &A24.x, &A24.z);
+    fp2_copy(&A3.x, &A24.x);
+
+    for(int i = 0; i < POWER_OF_3; i++) {
+        xTPL(&R2, &R2, &A3);
+        xTPL(&two_base.P, &two_base.P, &A3);
+        xTPL(&two_base.Q, &two_base.Q, &A3);
+        xTPL(&two_base.PmQ, &two_base.PmQ, &A3);
+    }
+
+    ec_dlog_2(scalarP2, scalarQ2, &two_base, &R2, E);
+    xDBLMUL(&test_point, &two_base.P, scalarP2, &two_base.Q, scalarQ2, &two_base.PmQ, E);
+    if(!ec_is_equal(&test_point, &R2)) {
+        curve_print("E : ", *E);
+        point_print("R2 : ", R2);
+        point_print("test_point : ", test_point);
+        printf("Error: x*P + y*Q != R (2)\n");
+        return;
+    }
+
+    // Chinese Remainder Theorem
+    ibz_copy_digits(&iP3, scalarP3, NWORDS_ORDER);
+    ibz_copy_digits(&iQ3, scalarQ3, NWORDS_ORDER);
+    ibz_copy_digits(&iP2, scalarP2, NWORDS_ORDER);
+    ibz_copy_digits(&iQ2, scalarQ2, NWORDS_ORDER);
+
+    ibz_crt(&iP3, &iP3, &iP2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
+    ibz_crt(&iQ3, &iQ3, &iQ2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
+    ibz_to_digits(scalarP, &iP3);
+    ibz_to_digits(scalarQ, &iQ3);
+
+    xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    if(!ec_is_equal(&test_point, R)){
+        ibz_copy_digits(&iP3, scalarP3, NWORDS_ORDER);
+        ibz_copy_digits(&iQ3, scalarQ3, NWORDS_ORDER);
+        ibz_mod(&iP3, &iP3, &TORSION_PLUS_3POWER);
+        ibz_mod(&iQ3, &iQ3, &TORSION_PLUS_3POWER);
+        ibz_sub(&iP3, &TORSION_PLUS_3POWER, &iP3);
+        ibz_sub(&iQ3, &TORSION_PLUS_3POWER, &iQ3);
+        memset(scalarP3, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ3, 0, NWORDS_ORDER * RADIX / 8);
+        ibz_to_digits(scalarP3, &iP3);
+        ibz_to_digits(scalarQ3, &iQ3);
+        xDBLMUL(&test_point, &three_base.P, scalarP3, &three_base.Q, scalarQ3, &three_base.PmQ, E);
+        if(!ec_is_equal(&test_point, &R3)) {
+            printf("Error: x*P + y*Q != R (3) double check..\n");
+            curve_print("E", *E);
+            point_print("R3", R3);
+            point_print("test_point", test_point);
+            return;
+        }
+
+        ibz_crt(&iP3, &iP3, &iP2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
+        ibz_crt(&iQ3, &iQ3, &iQ2, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
+        memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+        ibz_to_digits(scalarP, &iP3);
+        ibz_to_digits(scalarQ, &iQ3);
+    }
+    // Test if the computed scalars are correct
+    xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    if(!ec_is_equal(&test_point, R)) {
+        printf("Error: x*P + y*Q != R (final check)\n");
+        curve_print("E", *E);
+        point_print("R", *R);
+        point_print("test_point", test_point);
+        return;
+    }
+
+    ibz_finalize(&t1);
+    ibz_finalize(&t2);
+    ibz_finalize(&t3);
+    ibz_finalize(&iP3);
+    ibz_finalize(&iQ3);
+    ibz_finalize(&iP2);
+    ibz_finalize(&iQ2);
+
+    return;
+}
+
+void ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, const ec_point_t *R, const ec_curve_t *E) {
+    ec_basis_t six_base, five_base;
+    ec_point_t R6, R5;
+    digit_t scalarP6[NWORDS_ORDER] = {0}, scalarQ6[NWORDS_ORDER] = {0};
+    digit_t scalarP5[NWORDS_ORDER] = {0}, scalarQ5[NWORDS_ORDER] = {0};
+    ibz_t iP6, iQ6, iP5, iQ5, t1, t2, t3;
+
+    ibz_init(&iP6);
+    ibz_init(&iQ6);
+    ibz_init(&iP5);
+    ibz_init(&iQ5);
+    ibz_init(&t1);
+    ibz_init(&t2);
+    ibz_init(&t3);
+
+    copy_point(&R6, R);
+    copy_point(&six_base.P, &base->P);
+    copy_point(&six_base.Q, &base->Q);
+    copy_point(&six_base.PmQ, &base->PmQ);
+    ec_point_t A24, A3;
+
+    // Curve coefficient in the form A24 = (A+2C:4C)
+    fp2_add(&A24.z, &E->C, &E->C);
+    fp2_add(&A24.x, &E->A, &A24.z);
+    fp2_add(&A24.z, &A24.z, &A24.z);
+
+    // Curve coefficient in the form A3 = (A+2C:A-2C)
+    fp2_sub(&A3.z, &A24.x, &A24.z);
+    fp2_copy(&A3.x, &A24.x);
+    
+    for(int i = 0; i < POWER_OF_5; i++) {
+        xMUL_FIVE(&R6, &R6, &A3, &A24);
+        xMUL_FIVE(&six_base.P, &six_base.P, &A3, &A24);
+        xMUL_FIVE(&six_base.Q, &six_base.Q, &A3, &A24);
+        xMUL_FIVE(&six_base.PmQ, &six_base.PmQ, &A3, &A24);
+    }
+
+    ec_point_t test_point;
+    if (ec_is_zero(&R6)) {
+        memset(scalarP6, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ6, 0, NWORDS_ORDER * RADIX / 8);
+    } else {
+        ec_dlog_6(scalarP6, scalarQ6, &six_base, &R6, E);
+        xDBLMUL(&test_point, &six_base.P, scalarP6, &six_base.Q, scalarQ6, &six_base.PmQ, E);
+        if(!ec_is_equal(&test_point, &R6)) {
+            printf("Error: x*P + y*Q != R (6)\n");
+            return;
+        }
+    }
+
+    copy_point(&R5, R);
+    copy_point(&five_base.P, &base->P);
+    copy_point(&five_base.Q, &base->Q);
+    copy_point(&five_base.PmQ, &base->PmQ);
+    for(int i = 0; i < POWER_OF_3; i++) {
+        xTPL(&R5, &R5, &A3);
+        xTPL(&five_base.P, &five_base.P, &A3);
+        xTPL(&five_base.Q, &five_base.Q, &A3);
+        xTPL(&five_base.PmQ, &five_base.PmQ, &A3);
+    }
+
+    for(int i = 0; i < POWER_OF_2; i++) {
+        ec_dbl(&R5, E, &R5);
+        ec_dbl(&five_base.P, E, &five_base.P);
+        ec_dbl(&five_base.Q, E, &five_base.Q);
+        ec_dbl(&five_base.PmQ, E, &five_base.PmQ);
+    }
+
+    ec_dlog_5(scalarP5, scalarQ5, &five_base, &R5, E);
+    xDBLMUL(&test_point, &five_base.P, scalarP5, &five_base.Q, scalarQ5, &five_base.PmQ, E);
+    if(!ec_is_equal(&test_point, &R5)) {
+        printf("Error: x*P + y*Q != R (5)\n");
+        curve_print("E", *E);
+        point_print("R5", R5);
+        ibz_t t1, t2; 
+        ibz_init(&t1);
+        ibz_init(&t2);
+        ibz_copy_digits(&t1, scalarP5, NWORDS_ORDER);
+        ibz_copy_digits(&t2, scalarQ5, NWORDS_ORDER);
+        gmp_printf("scalarP5: %Zd\n", &t1);
+        gmp_printf("scalarQ5: %Zd\n", &t2);
+        ibz_finalize(&t1);
+        ibz_finalize(&t2);
+        point_print("five_base.P : ", five_base.P);
+        point_print("five_base.Q : ", five_base.Q);
+        return;
+    }
+
+    // Chinese Remainder Theorem
+    ibz_copy_digits(&iP6, scalarP6, NWORDS_ORDER);
+    ibz_copy_digits(&iQ6, scalarQ6, NWORDS_ORDER);
+    ibz_copy_digits(&iP5, scalarP5, NWORDS_ORDER);
+    ibz_copy_digits(&iQ5, scalarQ5, NWORDS_ORDER);
+
+    ibz_crt(&iP6, &iP6, &iP5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+    ibz_crt(&iQ6, &iQ6, &iQ5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+    ibz_to_digits(scalarP, &iP6);
+    ibz_to_digits(scalarQ, &iQ6);
+
+    xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    if(!ec_is_equal(&test_point, R)){
+        ibz_copy_digits(&iP6, scalarP6, NWORDS_ORDER);
+        ibz_copy_digits(&iQ6, scalarQ6, NWORDS_ORDER);
+        ibz_mod(&iP6, &iP6, &TORSION_PLUS_23POWER);
+        ibz_sub(&iP6, &TORSION_PLUS_23POWER, &iP6);
+        ibz_mod(&iQ6, &iQ6, &TORSION_PLUS_23POWER);
+        ibz_sub(&iQ6, &TORSION_PLUS_23POWER, &iQ6);
+        ibz_crt(&iP6, &iP6, &iP5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+        ibz_crt(&iQ6, &iQ6, &iQ5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+        memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+        memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
+        ibz_to_digits(scalarP, &iP6);
+        ibz_to_digits(scalarQ, &iQ6);
+    }
+    // Test if the computed scalars are correct
+    xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    if (!ec_is_equal(&test_point, R)) {
+        printf("Error: x*P + y*Q != R (235)\n");
+        return;
+    }
+    // assert(ec_is_equal(&test_point, R));
+
+    ibz_finalize(&t1);
+    ibz_finalize(&t2);
+    ibz_finalize(&t3);
+    ibz_finalize(&iP6);
+    ibz_finalize(&iQ6);
+    ibz_finalize(&iP5);
+    ibz_finalize(&iQ5);
+
+    return;
 }
 
 void
