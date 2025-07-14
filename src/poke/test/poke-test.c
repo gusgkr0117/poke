@@ -2,18 +2,9 @@
 #include <time.h>
 #include <stdlib.h>
 #include <rng.h>
+#include <bench.h>
 
-#define BENCH_LOOPS 10
-
-static inline int64_t
-cpucycles(void)
-{
-    struct timespec time;
-    clock_gettime(CLOCK_REALTIME, &time);
-    return (int64_t)(time.tv_sec * 1e9 + time.tv_nsec);
-}
-
-int test_poke() {
+int test_poke(int bench_loops) {
     poke_sk_t sk = {0};
     poke_pk_t pk = {0};
     poke_ct_t ct = {0};
@@ -23,7 +14,7 @@ int test_poke() {
     uint64_t cycles1, cycles2;
     uint64_t cycle_runs[3] = {0};
 
-    for(int i = 0; i < BENCH_LOOPS; i++) {
+    for(int i = 0; i < bench_loops; i++) {
         randombytes(m, 32);
         cycles1 = cpucycles();
         keygen(&sk, &pk);
@@ -45,17 +36,21 @@ int test_poke() {
         }
     }
 
-    printf("  keygen takes .................................... %.6f msec\n",
-            (double)(cycle_runs[0])/(1000000 * BENCH_LOOPS));
-    printf("  encrypt takes .................................... %.6f msec\n",
-            (double)(cycle_runs[1])/(1000000 * BENCH_LOOPS));
-    printf("  decrypt takes .................................... %.6f msec\n",
-            (double)(cycle_runs[2])/(1000000 * BENCH_LOOPS));
+    printf("test loops : %d\n", bench_loops);
+    printf("  keygen takes .................................... %.6f %s\n",
+            (double)(cycle_runs[0])/(bench_loops), BENCH_UNITS);
+    printf("  encrypt takes .................................... %.6f %s\n",
+            (double)(cycle_runs[1])/(bench_loops), BENCH_UNITS);
+    printf("  decrypt takes .................................... %.6f %s\n",
+            (double)(cycle_runs[2])/(bench_loops), BENCH_UNITS);
 
     return 0;
 }
 
 int main(int argc, char* argv[]) {
-
-    return test_poke();
+    int loops = 10;
+    if (argc > 1) {
+        loops = atoi(argv[1]);
+    }
+    return test_poke(loops);
 } 
