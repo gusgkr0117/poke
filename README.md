@@ -8,13 +8,22 @@ cd build
 cmake ..
 make precomp
 make
-ctest -V -R poke-test
+ctest -V -R poke-test_orig
+ctest -V -R poke-test_v1
 ```
 ## Output
-```bash
-keygen takes .................................... 208.235213 msec
-encrypt takes .................................... 112.797798 msec
-decrypt takes .................................... 44.286976 msec
+```plaintext
+==== original ====
+4: test loops : 20
+4:   keygen takes .................................... 1045711921.500000 cycles
+4:   encrypt takes .................................... 547468016.050000 cycles
+4:   decrypt takes .................................... 216827209.900000 cycles
+
+==== small prime ====
+5: test loops : 20
+5:   keygen takes .................................... 826072202.350000 cycles
+5:   encrypt takes .................................... 761635015.450000 cycles
+5:   decrypt takes .................................... 64544412.450000 cycles
 ```
 
 # Reference
