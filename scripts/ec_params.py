@@ -61,11 +61,11 @@ def strategy(n, p, q):
         C[i] = cost
     return S[n]
 
-# Function to read sqisign_parameters.txt and initial config
+# Function to read poke_parameters.txt and initial config
 def config():
 
     # Read file parameters
-    f = open('sqisign_parameters.txt')
+    f = open('poke_parameters.txt')
     f.readline()
     p_input_line = f.readline()
     B_input_line = f.readline()
@@ -75,7 +75,7 @@ def config():
         B = int(B_input_line.split(' = ')[-1])
         assert(B_input_line[:4+len(str(B))] == 'B = '+str(B) and p_input_line[:4+len(hex(p))] == 'p = '+hex(p))
     except:
-        print("Error reading sqisign_parameters.txt. Ensure file contests have the following form:\nlvl = x\np = 0x[hexstring]\nB = [decimalstring]")
+        print("Error reading poke_parameters.txt. Ensure file contests have the following form:\nlvl = x\np = 0x[hexstring]\nB = [decimalstring]")
         exit(-1)
 
     # Factorization
