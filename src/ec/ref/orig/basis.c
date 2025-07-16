@@ -1,7 +1,6 @@
 #include "curve_extras.h"
 #include "ec.h"
 #include "fp2.h"
-#include "isog.h"
 #include "gf_constants.h"
 
 void
@@ -708,7 +707,7 @@ ec_curve_to_basis_6(ec_basis_t *PQ6, const ec_curve_t *curve)
 }
 
 void
-ec_curve_to_basis_235(ec_basis_t *PQ235, const ec_curve_t *curve)
+ec_curve_to_basis_23C(ec_basis_t *PQ235, const ec_curve_t *curve)
 {
 
     fp2_t x, t0, t1, t2;

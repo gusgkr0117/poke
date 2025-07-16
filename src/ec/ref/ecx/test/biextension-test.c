@@ -106,13 +106,13 @@ int dlog_5_test() {
     ec_curve_t E0 = CURVE_E0;
     // ec_curve_t E0 = {{{0x3940dda05af233c7, 0xe0c71dc8daee1591, 0x35e393cf98c157e9, 0xd2252bee0da49865, 0xcc4a01728e08dada, 0xbffac66fba663d66, 0x000003c75e8d09a6}, {0x9a8b8a94847e2c26, 0x58fdcc22f9ad5a13, 0x195169d7cd6ca624, 0xbd48d79e4afd5257, 0xa8c29a3da26b5655, 0x982604249a9ddd98, 0x00004b889895687f}}, {{0x1}}};
 
-    ec_basis_t five_basis = BASIS_FIVE;
+    ec_basis_t five_basis = BASIS_C;
     ibz_t a, b, c, d;
     digit_t x[NWORDS_ORDER] = {0}, y[NWORDS_ORDER] = {0};
     ibz_init(&a); ibz_init(&b);
     ibz_init(&c); ibz_init(&d);
-    ibz_rand_interval(&a, &ibz_const_zero, &TORSION_PLUS_5POWER);
-    ibz_rand_interval(&b, &ibz_const_zero, &TORSION_PLUS_5POWER);
+    ibz_rand_interval(&a, &ibz_const_zero, &TORSION_PLUS_CPOWER);
+    ibz_rand_interval(&b, &ibz_const_zero, &TORSION_PLUS_CPOWER);
 
     ibz_to_digits(x, &a);
     ibz_to_digits(y, &b);

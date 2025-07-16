@@ -1,4 +1,5 @@
 lvl = 5
 p = 0x6a0bf4180690c6124673c50d17a556ff93faead914777ef3ecff193099d03d346b3e65f69451ffffffffffffffffffffffffffffffff
 B = 100
+Cfactor = 5
 use_twist = 0

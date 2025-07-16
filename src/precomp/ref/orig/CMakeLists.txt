@@ -29,7 +29,7 @@ add_custom_command(
 find_program(SAGEMATH sage)
 add_custom_target(precomp_${SVARIANT_LOWER}
     DEPENDS
-        "./sqisign_parameters.txt"
+        "./poke_parameters.txt"
     COMMAND
         "${SAGEMATH}" "${PROJECT_SOURCE_DIR}/scripts/precompute_torsion_constants.sage"
     COMMAND

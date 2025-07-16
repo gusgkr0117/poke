@@ -7,29 +7,31 @@ if not require_version(10, 0, print_message=True):
 
 ################################################################
 
-from parameters import p, B, use_twist, f, Tpls, Tmin, Dcom, Dchall, exp3, exp5
-T = Tpls * Tmin
+from parameters import p, B, Cfactor, use_twist, f, Tpls, Tmin, Dcom, Dchall, exp3, expC
+T = Tpls # * Tmin
 
 ################################################################
 
 if p % 4 != 3:
     raise NotImplementedError('requires p ≡ 3 (mod 4)')
 
-if use_twist == 1:
-    pfact = (p^2-1).factor(limit = 10000000)
-    plist = [l for (l,e) in pfact]
-else:
-    pfact = (p+1).factor(limit = 10000000)
-    plist = [l for (l,e) in pfact]
+# if use_twist == 1:
+#    pfact = list((p+1).factor(limit = 10000000)) + [(Cfactor, 1)]
+#    plist = [l for (l,e) in pfact]
+#else:
+pfact = (p+1).factor(limit = 10000000)
+plist = [l for (l,e) in pfact]
 
 Fp2.<i> = GF((p,2), modulus=[1,0,1])
+Fp4 = Fp2.extension(2, 'u')
 
 E = EllipticCurve(Fp2, [1,0])
+# if use_twist == 1 : E.set_order((p^2-1)^2)
 E.set_order((p+1)^2)
 assert E.j_invariant() == 1728
 assert E.is_supersingular()
 assert E.change_ring(Fp2).frobenius() == -p
-# assert E.order() == (p^2-1)^2
+# if use_twist == 1 : assert E.order() == (p^2-1)^2
 
 endo_1 = E.scalar_multiplication(1)
 endo_i = E.automorphisms()[-1]
@@ -71,6 +73,7 @@ gen4 = half_endo([endo_1, endo_k])
 ################################################################
 
 from sage.groups.generic import order_from_multiple
+
 x = Fp2.gen()
 while True:
     x += 1
@@ -103,9 +106,9 @@ while True:
         break
     print((p+1) // e)
 # P, Q = E.gens()
-# assert P.order() == p+1
-# assert Q.order() == p+1
-# assert order_from_multiple(P.weil_pairing(Q, p+1), p+1, operation='*') == p+1
+assert P.order() == p+1
+assert Q.order() == p+1
+assert order_from_multiple(P.weil_pairing(Q, p+1), p+1, operation='*') == p+1
 
 def dlp(P, Q, R):
     n = P.order()
@@ -184,33 +187,100 @@ def fmt_basis(name, P, Q):
         ]
     return Object('ec_basis_t', name, vs)
 
-bases = {
-        'EVEN': 1<<f,
-        'THREE': 3**exp3,
-        'FIVE': 5**exp5,
-        'ODD_PLUS': Tpls,
-        'ODD_MINUS': Tmin,
-        'COMMITMENT_PLUS': gcd(Tpls, Dcom),
-        'COMMITMENT_MINUS': gcd(Tmin, Dcom),
-        'CHALLENGE': Dchall,
-    }
-assert P.order() == Q.order()
+if use_twist == 1:
+    E_ext = EllipticCurve(Fp4, [1,0])
+    E_ext.set_order((p^2-1)^2)
+    x = Fp4.gen()
+    while True:
+        x += 1
+        try:
+            P_ext = E_ext.lift_x(x)
+        except ValueError:
+            continue
+        P_ext = P_ext * ((p-1)//Cfactor) * (p+1)
+        o = order_from_multiple(P_ext, Cfactor, [Cfactor])
+        if o == Cfactor:
+            break
+    assert P_ext != 0
+    # assert P_ext.order() == (p+1) * Cfactor
 
-objs = ObjectFormatter([
-        fmt_basis(f'BASIS_{k}', ZZ(P.order()/v)*P, ZZ(Q.order()/v)*Q)
-        for k,v in bases.items()
-    ] + [
-        Object('ec_curve_t', 'CURVE_E0', [[[int(0)]], [[int(1)]]]),
-        Object('ec_point_t', 'CURVE_E0_A24', [[[int(0)]], [[int(1)]]]),
-        Object('ibz_mat_2x2_t', 'ACTION_I', [[Ibz(v) for v in vs] for vs in mati]),
-        Object('ibz_mat_2x2_t', 'ACTION_J', [[Ibz(v) for v in vs] for vs in matj]),
-        Object('ibz_mat_2x2_t', 'ACTION_K', [[Ibz(v) for v in vs] for vs in matk]),
-        Object('ibz_mat_2x2_t', 'ACTION_GEN2', [[Ibz(v) for v in vs] for vs in mat2]),
-        Object('ibz_mat_2x2_t', 'ACTION_GEN3', [[Ibz(v) for v in vs] for vs in mat3]),
-        Object('ibz_mat_2x2_t', 'ACTION_GEN4', [[Ibz(v) for v in vs] for vs in mat4]),
-        Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_UNDISTORTED_GEN', [Ibz(1), [Ibz(ZZ(v)) for v in idealPgen]]),
-        Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_DISTORTION_ENDO', [Ibz(1), [Ibz(ZZ(v)) for v in distorter]]),
-    ])
+    x = Fp4.gen()
+    while True:
+        x += 1
+        try:
+            Q_ext = E_ext.lift_x(x)
+        except ValueError:
+            continue
+        Q_ext = Q_ext * ((p-1)//Cfactor) * (p+1)
+        o = order_from_multiple(Q_ext, Cfactor, [Cfactor])
+        if o != Cfactor:
+            continue
+        # print(o//(T<<f))
+        # Q *= o // (T<<f)
+        # assert (T<<f) == p+1
+        # assert Q_ext.order() == (p+1) * Cfactor
+        e = order_from_multiple(P_ext.weil_pairing(Q_ext, Cfactor), Cfactor, operation='*')
+        if e == Cfactor:
+            break
+
+    bases = {
+            'EVEN': 1<<f,
+            'THREE': 3**exp3,
+            #'C': Cfactor**expC,
+            'ODD_PLUS': Tpls,
+            #'ODD_MINUS': Tmin,
+            #'COMMITMENT_PLUS': gcd(Tpls, Dcom),
+            #'COMMITMENT_MINUS': gcd(Tmin, Dcom),
+            #'CHALLENGE': Dchall,
+        }
+    assert P.order() == Q.order()
+    assert P * (p + 1) == 0
+    
+    objs = ObjectFormatter([
+            fmt_basis(f'BASIS_{k}', ZZ(P.order()/v)*P, ZZ(Q.order()/v)*Q)
+            for k,v in bases.items()
+        ] +
+            [fmt_basis(f'BASIS_C', P_ext, Q_ext)]
+        + [
+            Object('ec_curve_t', 'CURVE_E0', [[[int(0)]], [[int(1)]]]),
+            Object('ec_point_t', 'CURVE_E0_A24', [[[int(0)]], [[int(1)]]]),
+            Object('ibz_mat_2x2_t', 'ACTION_I', [[Ibz(v) for v in vs] for vs in mati]),
+            Object('ibz_mat_2x2_t', 'ACTION_J', [[Ibz(v) for v in vs] for vs in matj]),
+            Object('ibz_mat_2x2_t', 'ACTION_K', [[Ibz(v) for v in vs] for vs in matk]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN2', [[Ibz(v) for v in vs] for vs in mat2]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN3', [[Ibz(v) for v in vs] for vs in mat3]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN4', [[Ibz(v) for v in vs] for vs in mat4]),
+            Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_UNDISTORTED_GEN', [Ibz(1), [Ibz(ZZ(v)) for v in idealPgen]]),
+            Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_DISTORTION_ENDO', [Ibz(1), [Ibz(ZZ(v)) for v in distorter]]),
+        ])
+else :
+    bases = {
+            'EVEN': 1<<f,
+            'THREE': 3**exp3,
+            'C': Cfactor**expC,
+            'ODD_PLUS': Tpls,
+            'ODD_MINUS': Tmin,
+            'COMMITMENT_PLUS': gcd(Tpls, Dcom),
+            'COMMITMENT_MINUS': gcd(Tmin, Dcom),
+            'CHALLENGE': Dchall,
+        }
+    assert P.order() == Q.order()
+
+    objs = ObjectFormatter([
+            fmt_basis(f'BASIS_{k}', ZZ(P.order()/v)*P, ZZ(Q.order()/v)*Q)
+            for k,v in bases.items()
+        ] + [
+            Object('ec_curve_t', 'CURVE_E0', [[[int(0)]], [[int(1)]]]),
+            Object('ec_point_t', 'CURVE_E0_A24', [[[int(0)]], [[int(1)]]]),
+            Object('ibz_mat_2x2_t', 'ACTION_I', [[Ibz(v) for v in vs] for vs in mati]),
+            Object('ibz_mat_2x2_t', 'ACTION_J', [[Ibz(v) for v in vs] for vs in matj]),
+            Object('ibz_mat_2x2_t', 'ACTION_K', [[Ibz(v) for v in vs] for vs in matk]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN2', [[Ibz(v) for v in vs] for vs in mat2]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN3', [[Ibz(v) for v in vs] for vs in mat3]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN4', [[Ibz(v) for v in vs] for vs in mat4]),
+            Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_UNDISTORTED_GEN', [Ibz(1), [Ibz(ZZ(v)) for v in idealPgen]]),
+            Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_DISTORTION_ENDO', [Ibz(1), [Ibz(ZZ(v)) for v in distorter]]),
+        ])
 
 with open('include/endomorphism_action.h','w') as hfile:
     with open('endomorphism_action.c','w') as cfile:

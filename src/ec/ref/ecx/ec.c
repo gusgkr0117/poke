@@ -2360,8 +2360,8 @@ void ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, con
     ibz_copy_digits(&iP5, scalarP5, NWORDS_ORDER);
     ibz_copy_digits(&iQ5, scalarQ5, NWORDS_ORDER);
 
-    ibz_crt(&iP6, &iP6, &iP5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
-    ibz_crt(&iQ6, &iQ6, &iQ5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+    ibz_crt(&iP6, &iP6, &iP5, &TORSION_PLUS_23POWER, &TORSION_PLUS_CPOWER);
+    ibz_crt(&iQ6, &iQ6, &iQ5, &TORSION_PLUS_23POWER, &TORSION_PLUS_CPOWER);
     ibz_to_digits(scalarP, &iP6);
     ibz_to_digits(scalarQ, &iQ6);
 
@@ -2373,8 +2373,8 @@ void ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, con
         ibz_sub(&iP6, &TORSION_PLUS_23POWER, &iP6);
         ibz_mod(&iQ6, &iQ6, &TORSION_PLUS_23POWER);
         ibz_sub(&iQ6, &TORSION_PLUS_23POWER, &iQ6);
-        ibz_crt(&iP6, &iP6, &iP5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
-        ibz_crt(&iQ6, &iQ6, &iQ5, &TORSION_PLUS_23POWER, &TORSION_PLUS_5POWER);
+        ibz_crt(&iP6, &iP6, &iP5, &TORSION_PLUS_23POWER, &TORSION_PLUS_CPOWER);
+        ibz_crt(&iQ6, &iQ6, &iQ5, &TORSION_PLUS_23POWER, &TORSION_PLUS_CPOWER);
         memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
         memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
         ibz_to_digits(scalarP, &iP6);

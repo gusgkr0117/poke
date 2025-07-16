@@ -1,4 +1,4 @@
-#include "poke.h"
+#include <poke.h>
 #include <time.h>
 #include <stdlib.h>
 #include <rng.h>
