@@ -43,7 +43,6 @@ typedef struct poke_pk_t {
 typedef struct poke_ct_t {
     ec_curve_t EB;
     ec_curve_t EAB;
-    ec_curve_t EA1B;
     ec_basis_t PQ2_B;
     ec_basis_t PQxy_B;
     ec_basis_t PQ2_AB;

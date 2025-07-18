@@ -494,8 +494,6 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     ec_eval_odd_basis(&EA1B, &isogB_prime1, &eval_basis[0], 1);
     EA1_xy = eval_basis[0];
 
-    ct->EA1B = EA1B;
-
     // Masking evaluated basis points
     xDBLMUL(&EA1B_xy.P, &EA1_xy.P, mask_xy_scalar[0], &EA1_xy.Q, mask_xy_scalar[1], &EA1_xy.PmQ, &EA1B);
     xDBLMUL(&EA1B_xy.Q, &EA1_xy.P, mask_xy_scalar[2], &EA1_xy.Q, mask_xy_scalar[3], &EA1_xy.PmQ, &EA1B);
