@@ -191,12 +191,12 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 }
 
 int keygen(poke_sk_t *sk, poke_pk_t *pk) {
-    ibz_t q, alpha, beta, gamma, delta, rhs, deg;
+    ibz_t q, alpha, beta, gamma, gamma1, delta, rhs, deg;
     ibz_t A, q_bound;
     ec_point_t pointT;
     
     ibz_init(&q); ibz_init(&alpha); ibz_init(&beta);
-    ibz_init(&gamma); ibz_init(&delta); ibz_init(&rhs); ibz_init(&deg);
+    ibz_init(&gamma); ibz_init(&gamma1); ibz_init(&delta); ibz_init(&rhs); ibz_init(&deg);
     ibz_init(&A); ibz_init(&q_bound);
     ibz_div_2exp(&A, &TORSION_PLUS_2POWER, 2);
     ibz_div_2exp(&q_bound, &TORSION_PLUS_2POWER, 4);
@@ -214,6 +214,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     ibz_random_unit(&alpha, &A);
     ibz_random_unit(&beta, &A);
     ibz_random_unit(&gamma, &TORSION_PLUS_3POWER);
+    ibz_random_unit(&gamma1, &TORSION_PLUS_3POWER);
     ibz_random_unit(&delta, &TORSION_PLUS_CPOWER);
 
     memset(&sk->deg, 0, NWORDS_ORDER * RADIX / 8);
@@ -386,9 +387,9 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     ec_mul_ibz(&pk->PQ3.Q, &E01.E2, &gamma, &imPQ3.Q);
     ec_mul_ibz(&pk->PQ3.PmQ, &E01.E2, &gamma, &imPQ3.PmQ);
 
-    ec_mul_ibz(&pk->PQA13.P, &hd_isog.codomain.E1, &gamma, &imPQ31.P);
-    ec_mul_ibz(&pk->PQA13.Q, &hd_isog.codomain.E1, &gamma, &imPQ31.Q);
-    ec_mul_ibz(&pk->PQA13.PmQ, &hd_isog.codomain.E1, &gamma, &imPQ31.PmQ);
+    ec_mul_ibz(&pk->PQA13.P, &hd_isog.codomain.E1, &gamma1, &imPQ31.P);
+    ec_mul_ibz(&pk->PQA13.Q, &hd_isog.codomain.E1, &gamma1, &imPQ31.Q);
+    ec_mul_ibz(&pk->PQA13.PmQ, &hd_isog.codomain.E1, &gamma1, &imPQ31.PmQ);
 
     pk->EA1 = hd_isog.codomain.E1;
     pk->EA = E01.E2;
@@ -400,6 +401,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     ibz_finalize(&beta);
     ibz_finalize(&delta);
     ibz_finalize(&gamma);
+    ibz_finalize(&gamma1);
     ibz_finalize(&rhs);
     ibz_finalize(&deg);
     ibz_finalize(&A);
