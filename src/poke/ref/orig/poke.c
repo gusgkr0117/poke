@@ -211,8 +211,8 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     // gmp_printf("gamma = %Zd\n", gamma);
     // gmp_printf("delta = %Zd\n", delta);
     ec_curve_t curve = CURVE_E0;
-    fp2_t j_inv;
-    ec_j_inv(&j_inv, &curve);
+    // fp2_t j_inv;
+    // ec_j_inv(&j_inv, &curve);
 
     quat_alg_elem_t tau;
     quat_alg_elem_init(&tau);

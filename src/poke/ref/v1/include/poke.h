@@ -29,7 +29,7 @@ typedef struct poke_pk_t {
     ec_basis_t PQ2;
     ec_basis_t PQ3;
     ec_basis_t PQA13;
-    ec_basis_t PQxy;
+    // ec_basis_t PQxy;
 } poke_pk_t;
 
 /** @brief POKE ciphertext
@@ -44,7 +44,7 @@ typedef struct poke_ct_t {
     ec_curve_t EB;
     ec_curve_t EAB;
     ec_basis_t PQ2_B;
-    ec_basis_t PQxy_B;
+    // ec_basis_t PQxy_B;
     ec_basis_t PQ2_AB;
     uint8_t ct[32];
 } poke_ct_t;
