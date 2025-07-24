@@ -11,6 +11,10 @@ option(ENABLE_TESTS  "Enable compilation of tests." ON)
 option(ENABLE_CT_TESTING  "Enable compilation for constant time testing." OFF)
 option(ENABLE_GMP_BUILD "Download and build external version of GMP" OFF)
 
+if (NOT DEFINED POKE_BUILD_TYPE)
+	SET(POKE_BUILD_TYPE "ref")
+endif()
+
 SET(SVARIANT_S "orig;v1;")
 
 set(SELECT_POKE_VARIANT ${PROJECT_SOURCE_DIR}/.cmake/poke_variant.cmake)
@@ -19,6 +23,7 @@ set(SELECT_IMPL_TYPE ${PROJECT_SOURCE_DIR}/.cmake/impl_type.cmake)
 set(INC_PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 include(.cmake/flags.cmake)
+include(.cmake/sanitizers.cmake)
 include(.cmake/target.cmake)
 include(.cmake/gmpconfig.cmake)
 
