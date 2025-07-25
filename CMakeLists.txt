@@ -15,7 +15,7 @@ if (NOT DEFINED POKE_BUILD_TYPE)
 	SET(POKE_BUILD_TYPE "ref")
 endif()
 
-SET(SVARIANT_S "orig;v1;")
+SET(SVARIANT_S "orig;inke_lvl1;inke_lvl3;inke_lvl5")
 
 set(SELECT_POKE_VARIANT ${PROJECT_SOURCE_DIR}/.cmake/poke_variant.cmake)
 set(SELECT_IMPL_TYPE ${PROJECT_SOURCE_DIR}/.cmake/impl_type.cmake)

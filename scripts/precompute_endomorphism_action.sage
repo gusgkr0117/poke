@@ -7,7 +7,7 @@ if not require_version(10, 0, print_message=True):
 
 ################################################################
 
-from parameters import p, B, Cfactor, use_twist, f, Tpls, Tmin, Dcom, Dchall, exp3, expC
+from parameters import p, B, Cfactor, use_cfactor, use_twist, f, Tpls, Tmin, Dcom, Dchall, exp3, expC
 T = Tpls # * Tmin
 
 ################################################################
@@ -104,7 +104,7 @@ while True:
     e = order_from_multiple(P.weil_pairing(Q, p+1), p+1, operation='*')
     if e == p+1:
         break
-    print((p+1) // e)
+    # print((p+1) // e)
 # P, Q = E.gens()
 assert P.order() == p+1
 assert Q.order() == p+1
@@ -253,7 +253,7 @@ if use_twist == 1:
             Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_UNDISTORTED_GEN', [Ibz(1), [Ibz(ZZ(v)) for v in idealPgen]]),
             Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_DISTORTION_ENDO', [Ibz(1), [Ibz(ZZ(v)) for v in distorter]]),
         ])
-else :
+elif use_cfactor == 1 :
     bases = {
             'EVEN': 1<<f,
             'THREE': 3**exp3,
@@ -281,6 +281,34 @@ else :
             Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_UNDISTORTED_GEN', [Ibz(1), [Ibz(ZZ(v)) for v in idealPgen]]),
             Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_DISTORTION_ENDO', [Ibz(1), [Ibz(ZZ(v)) for v in distorter]]),
         ])
+else :
+    bases = {
+            'EVEN': 1<<f,
+            'THREE': 3**exp3,
+            'ODD_PLUS': Tpls,
+            'ODD_MINUS': Tmin,
+            'COMMITMENT_PLUS': gcd(Tpls, Dcom),
+            'COMMITMENT_MINUS': gcd(Tmin, Dcom),
+            'CHALLENGE': Dchall,
+        }
+    assert P.order() == Q.order()
+
+    objs = ObjectFormatter([
+            fmt_basis(f'BASIS_{k}', ZZ(P.order()/v)*P, ZZ(Q.order()/v)*Q)
+            for k,v in bases.items()
+        ] + [
+            Object('ec_curve_t', 'CURVE_E0', [[[int(0)]], [[int(1)]]]),
+            Object('ec_point_t', 'CURVE_E0_A24', [[[int(0)]], [[int(1)]]]),
+            Object('ibz_mat_2x2_t', 'ACTION_I', [[Ibz(v) for v in vs] for vs in mati]),
+            Object('ibz_mat_2x2_t', 'ACTION_J', [[Ibz(v) for v in vs] for vs in matj]),
+            Object('ibz_mat_2x2_t', 'ACTION_K', [[Ibz(v) for v in vs] for vs in matk]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN2', [[Ibz(v) for v in vs] for vs in mat2]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN3', [[Ibz(v) for v in vs] for vs in mat3]),
+            Object('ibz_mat_2x2_t', 'ACTION_GEN4', [[Ibz(v) for v in vs] for vs in mat4]),
+            Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_UNDISTORTED_GEN', [Ibz(1), [Ibz(ZZ(v)) for v in idealPgen]]),
+            Object('quat_alg_elem_t', 'COMMITMENT_IDEAL_DISTORTION_ENDO', [Ibz(1), [Ibz(ZZ(v)) for v in distorter]]),
+        ])
+
 
 with open('include/endomorphism_action.h','w') as hfile:
     with open('endomorphism_action.c','w') as cfile:

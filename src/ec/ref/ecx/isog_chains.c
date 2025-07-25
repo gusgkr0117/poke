@@ -284,7 +284,6 @@ ec_eval_odd(ec_curve_t *image, const ec_isog_odd_t *phi, ec_point_t *points, uns
     int i, j, k;
 
     AC_to_A24(&A24, &phi->curve);
-
     // Isogenies with kernel in E[p+1]
     copy_point(&ker_plus, &phi->ker_plus);
     copy_point(&ker_minus, &phi->ker_minus);
