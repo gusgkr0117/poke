@@ -102,7 +102,7 @@ typedef struct ec_isog_even_t
  * represented as a fixed-length vector of integer exponents.
  */
 
-typedef uint8_t ec_degree_odd_t[P_LEN + M_LEN];
+typedef uint16_t ec_degree_odd_t[P_LEN + M_LEN]; // For lvl5, we must use uint16 instead of uint8..
 
 /** @brief An isogeny of odd degree dividing p² - 1
  *

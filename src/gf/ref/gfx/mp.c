@@ -1,5 +1,6 @@
 // TODO this should be its own module
 #include "mp.h"
+#include <assert.h>
 
 // The below functions were taken from the GF module
 
@@ -164,7 +165,8 @@ mp_mul2(digit_t *c, const digit_t *a, const digit_t *b)
 void
 mp_mul_generic(digit_t *c, const digit_t *a, const digit_t b, unsigned int nwords)
 {
-    digit_t t[2], result[10] = {0,};
+    digit_t t[2], result[14] = {0,};
+    assert(nwords < 14);
     unsigned int carry = 0;
     for(unsigned int i = 0; i < nwords - 1; i++){
         MUL(t, a[i], b);

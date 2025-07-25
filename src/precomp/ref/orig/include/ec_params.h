@@ -133,8 +133,6 @@ static int sizeK[2] =
 #define sJ_max 1
 #define sK_max 83
 
-#define ceil_log_sI_max 0
-#define ceil_log_sJ_max 0
 
 // Strategies for dim2 isogenies
 static int strategies[74][128]={
