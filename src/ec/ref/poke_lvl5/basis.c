@@ -743,7 +743,7 @@ ec_curve_to_basis_23C(ec_basis_t *PQ235, const ec_curve_t *curve)
             continue;
 
         // Clear non-2 factors, non-3 factors and non-5 factors from the order
-        //xMULv2(&P, &P, p_cofactor_for_235fgh, (int)P_COFACTOR_FOR_235FGH_BITLENGTH, &A24);
+        xMULv2(&P, &P, p_cofactor_for_235fgh, (int)P_COFACTOR_FOR_235FGH_BITLENGTH, &A24);
 
         // Check if point has order 2^f*3^g*5^h
         copy_point(&P6, &P);
@@ -790,7 +790,7 @@ ec_curve_to_basis_23C(ec_basis_t *PQ235, const ec_curve_t *curve)
             continue;
 
         // Clear non-6 factors from the order
-        //xMULv2(&Q, &Q, p_cofactor_for_235fgh, (int)P_COFACTOR_FOR_235FGH_BITLENGTH, &A24);
+        xMULv2(&Q, &Q, p_cofactor_for_235fgh, (int)P_COFACTOR_FOR_235FGH_BITLENGTH, &A24);
 
         // Check first if point has order 2^f*3^g
         copy_point(&Q6, &Q);

@@ -68,10 +68,10 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     ec_basis_t RS;
     ec_curve_to_basis_23C(&RS, &E01->E2);
-    point_print("RS.P : ", RS.P);
-    point_print("RS.Q : ", RS.Q);
-    point_print("RS.PmQ : ", RS.PmQ);
-    curve_print("E01->E2 : ", E01->E2);
+    // point_print("RS.P : ", RS.P);
+    // point_print("RS.Q : ", RS.Q);
+    // point_print("RS.PmQ : ", RS.PmQ);
+    // curve_print("E01->E2 : ", E01->E2);
 
     input_points.P2 = RS.P;
     ec_set_zero(&input_points.P1);

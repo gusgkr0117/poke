@@ -1219,7 +1219,7 @@ ec_dlog_2(digit_t *scalarP,
     }
 
     e = 0;
-    const uint TWOe = 64;
+    const unsigned int TWOe = 64;
     ediv2 = 32;
     while(e * TWOe + TWOe < f) {
         copy_jac_point(&TT, &RR);

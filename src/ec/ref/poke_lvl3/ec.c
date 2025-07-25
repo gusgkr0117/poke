@@ -1219,7 +1219,7 @@ ec_dlog_2(digit_t *scalarP,
     }
 
     e = 0;
-    const uint TWOe = 64;
+    const unsigned int TWOe = 64;
     ediv2 = 32;
     while(e * TWOe + TWOe < f) {
         copy_jac_point(&TT, &RR);
@@ -1944,6 +1944,8 @@ ec_dlog_5_step(digit_t *x,
         }
     }
 
+    if (f == 1) return;
+
     // iterations 3-B
     for (i = 3; i <= B; i++) {
         value *= 5;
@@ -2025,7 +2027,7 @@ void ec_dlog_5(digit_t *scalarP,
           const ec_point_t *R,
           const ec_curve_t *curve)
 {
-    digit_t f = 0, e = 0, ediv2 = 0, w0 = 0, z0 = 0;
+    digit_t f = 0, e = 0, ediv2 = 0, w0 = 0, z0 = 0, rest_div2 = 0;
     digit_t ww[NWORDS_ORDER] = { 0 }, zz[NWORDS_ORDER] = { 0 };
     jac_point_t P, Q, RR, TT, R2r0;
     jac_point_t Pe5[POWER_OF_5], Qe5[POWER_OF_5], PQe5[POWER_OF_5];
@@ -2126,6 +2128,7 @@ void ec_dlog_5(digit_t *scalarP,
 
         memset(ww, 0, NWORDS_ORDER * RADIX / 8);
         memset(zz, 0, NWORDS_ORDER * RADIX / 8);
+        // printf("w0, z0 : %llx, %llx\n", w0, z0);
         ww[0] = w0;
         zz[0] = z0;
         for(int i = 0; i < e; i++) {
@@ -2140,8 +2143,12 @@ void ec_dlog_5(digit_t *scalarP,
     digit_t rest;
     copy_jac_point(&TT, &RR);
     rest = f - e * FIVEe;
+    rest_div2 = rest >> 1;
+    if (rest <= 3) {
+        rest_div2 = rest;
+    }
     // w0, z0 <- dlog5(R, f1, f1 div 2)
-    ec_dlog_5_step(&w0, &z0, &TT, (int)rest, (int)(rest >> 1), &Pe5[0], &Qe5[0], &PQe5[0], &curvenorm);
+    ec_dlog_5_step(&w0, &z0, &TT, (int)rest, (int)rest_div2, &Pe5[0], &Qe5[0], &PQe5[0], &curvenorm);
 
     // RR <- RR - (w0*Pe5[f-1] + z0*Qe5[f-1])
     DBLMUL(&R2r0, &Pe5[f - e * FIVEe - 1], w0, &Qe5[f - e * FIVEe - 1], z0, &curvenorm);
@@ -2150,6 +2157,7 @@ void ec_dlog_5(digit_t *scalarP,
 
     memset(ww, 0, NWORDS_ORDER * RADIX / 8);
     memset(zz, 0, NWORDS_ORDER * RADIX / 8);
+    // printf("w0, z0 : %llx, %llx\n", w0, z0);
     ww[0] = w0;
     zz[0] = z0;
     for(int i = 0; i < e; i++) {
