@@ -28,7 +28,7 @@ if use_twist == 1 :
     Lpls = {l for l in L if (p+1).valuation(l) >= (p-1).valuation(l)}
 else:
     Lpls = {l for l in L}
-
+    
 Lmin = L - Lpls
 Lpls, Lmin = map(sorted, (Lpls, Lmin))
 Epls = [(p+1).valuation(l) for l in Lpls]

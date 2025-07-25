@@ -52,4 +52,4 @@ add_custom_target(precomp_${SVARIANT_LOWER}
 set_directory_properties(PROPERTIES CLEAN_NO_CUSTOM true)
 set_target_properties(precomp_${SVARIANT_LOWER} PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
-add_dependencies(precomp precomp_orig)
+add_dependencies(precomp precomp_poke_lvl5)
