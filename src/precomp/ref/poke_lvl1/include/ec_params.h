@@ -40,6 +40,10 @@ static digit_t p_cofactor_for_3g[3] = { 0x0000000000000000, 0x0000000000000000, 
 static digit_t p_cofactor_for_6fg[1] = { 0x000003782dace9d9 };
 #define P_COFACTOR_FOR_6FG_BITLENGTH 42
 
+// p+1 divided by the powers of 3 and 5
+static digit_t p_cofactor_for_35gh[3] = { 0x0000000000000000, 0x0000000000000000, 0x0000000000000002 };
+#define P_COFACTOR_FOR_35GH_BITLENGTH 130
+
 // p+1 divided by the powers of 2, 3 and 5
 static digit_t p_cofactor_for_235fgh[1] = { 0x0000000000000001 };
 #define P_COFACTOR_FOR_235FGH_BITLENGTH 1

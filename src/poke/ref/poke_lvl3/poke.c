@@ -67,7 +67,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     copy_point(&imPQ, &output_points.P1);
 
     ec_basis_t RS;
-    ec_curve_to_basis_23C(&RS, &E01->E2);
+    ec_curve_to_basis_35(&RS, &E01->E2);
     // point_print("RS.P : ", RS.P);
     // point_print("RS.Q : ", RS.Q);
     // point_print("RS.PmQ : ", RS.PmQ);
@@ -103,7 +103,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     lift_basis(&jacR, &jacS, &RS, &E01->E2);
 
-    ec_dlog_235(x, y, &imRS_basis, &imP, &phi->codomain.E1);
+    ec_dlog_35(x, y, &imRS_basis, &imP, &phi->codomain.E1);
     ec_point_t test_point;
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &imP)) {
@@ -115,7 +115,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
 
-    ec_dlog_235(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
+    ec_dlog_35(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &imQ)) {
         printf("x*R + y*S != imQ\n");
@@ -278,6 +278,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     
     isog.degree[0] = TORSION_PLUS_ODD_POWERS[0];
     isog.degree[1] = 0;
+    isog.degree[2] = 0;
     ec_curve_t E1;
 
     ec_eval_odd_basis(&E1, &isog, &E0_two, 1);
@@ -457,6 +458,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     isogB.curve = CURVE_E0;
     isogB.degree[0] = POWER_OF_3;
     isogB.degree[1] = 0;
+    isogB.degree[2] = 0;
     ec_set_zero(&isogB.ker_minus);
     // kernel = P + beta * Q
     xDBLMUL(&isogB.ker_plus, &BASIS_THREE.P, one_scalar, &BASIS_THREE.Q, beta_scalar, &BASIS_THREE.PmQ, &isogB.curve);
@@ -483,6 +485,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     isogB_prime.curve = pk->EA;
     isogB_prime.degree[0] = TORSION_PLUS_ODD_POWERS[0];
     isogB_prime.degree[1] = 0;
+    isogB_prime.degree[2] = 0;
     ec_set_zero(&isogB_prime.ker_minus);
     // kernel = P + beta * Q
     xDBLMUL(&isogB_prime.ker_plus, &pk->PQ3.P, one_scalar, &pk->PQ3.Q, beta_scalar, &pk->PQ3.PmQ, &isogB_prime.curve);

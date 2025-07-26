@@ -368,6 +368,16 @@ void ec_curve_to_basis_6(ec_basis_t *PQ6, const ec_curve_t *curve);
  *
  * The algorithm is deterministic
  *
+ * @param PQ6 the computed 3^g*C-torsion basis
+ * @param curve a curve
+ */
+void ec_curve_to_basis_35(ec_basis_t *PQ6, const ec_curve_t *curve);
+
+/**
+ * @brief Generate a 2^f*3^g*C-torsion basis
+ *
+ * The algorithm is deterministic
+ *
  * @param PQ6 the computed 2^f*3^g*C-torsion basis
  * @param curve a curve
  */
@@ -432,6 +442,22 @@ void ec_dlog_5(digit_t *scalarP,
  * @param R a point of order dividing 2^f*3^g
  */
 void ec_dlog_6(digit_t *scalarP,
+               digit_t *scalarQ,
+               const ec_basis_t *base,
+               const ec_point_t *R,
+               const ec_curve_t *E);
+
+/**
+ * @brief Compute the generalized dlog of R wrt the 3^g*5^h-basis PQ
+ *
+ * Ensure that R = scalarP * P + scalarQ * Q
+ *
+ * @param scalarP the computed dlog
+ * @param scalarQ the computed dlog
+ * @param base a 3^g*5^f-torsion basis
+ * @param R a point of order dividing 3^g*5^h
+ */
+void ec_dlog_35(digit_t *scalarP,
                digit_t *scalarQ,
                const ec_basis_t *base,
                const ec_point_t *R,

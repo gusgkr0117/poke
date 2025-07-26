@@ -67,7 +67,11 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     copy_point(&imPQ, &output_points.P1);
 
     ec_basis_t RS;
-    ec_curve_to_basis_23C(&RS, &E01->E2);
+    ec_curve_to_basis_35(&RS, &E01->E2);
+    // point_print("RS.P : ", RS.P);
+    // point_print("RS.Q : ", RS.Q);
+    // point_print("RS.PmQ : ", RS.PmQ);
+    // curve_print("E01->E2 : ", E01->E2);
 
     input_points.P2 = RS.P;
     ec_set_zero(&input_points.P1);
@@ -99,7 +103,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     lift_basis(&jacR, &jacS, &RS, &E01->E2);
 
-    ec_dlog_235(x, y, &imRS_basis, &imP, &phi->codomain.E1);
+    ec_dlog_35(x, y, &imRS_basis, &imP, &phi->codomain.E1);
     ec_point_t test_point;
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &imP)) {
@@ -111,7 +115,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
 
-    ec_dlog_235(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
+    ec_dlog_35(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &imQ)) {
         printf("x*R + y*S != imQ\n");

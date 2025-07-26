@@ -20,16 +20,19 @@ int test_poke(int bench_loops) {
         keygen(&sk, &pk);
         cycles2 = cpucycles();
         cycle_runs[0] += cycles2 - cycles1;
-        
+        // printf("keygen done..\n");
+
         cycles1 = cpucycles();
         encrypt(&ct, &pk, m, 32);
         cycles2 = cpucycles();
         cycle_runs[1] += cycles2 - cycles1;
+        // printf("encrypt done..\n");
 
         cycles1 = cpucycles();
         decrypt(dec_m, &m_len, &ct, &sk);
         cycles2 = cpucycles();
         cycle_runs[2] += cycles2 - cycles1;
+        // printf("decrypt done..\n");
 
         for (int j = 0; j < sizeof(m); j++) {
             if (m[j] != dec_m[j]) return 1;

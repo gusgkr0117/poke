@@ -172,7 +172,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     ibz_t q, alpha, beta, gamma, delta, rhs, deg;
     ibz_t A, q_bound;
     ec_point_t pointT;
-    
+
     ibz_init(&q); ibz_init(&alpha); ibz_init(&beta);
     ibz_init(&gamma); ibz_init(&delta); ibz_init(&rhs); ibz_init(&deg);
     ibz_init(&A); ibz_init(&q_bound);
@@ -274,6 +274,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     
     isog.degree[0] = TORSION_PLUS_ODD_POWERS[0];
     isog.degree[1] = 0;
+    isog.degree[2] = 0;
     ec_curve_t E1;
 
     ec_eval_odd_basis(&E1, &isog, &E0_two, 1);
@@ -351,7 +352,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     jac_to_xz(&eval_points.P, &P23x);
     jac_to_xz(&eval_points.Q, &Q23x);
     jac_to_xz(&eval_points.PmQ, &PmQ23x);
-    
+
     eval_dimtwo_isog(&hd_isog, &deg, &imPQ23x, &eval_points, &E01);
 
     ibz_t cofactor;
@@ -453,6 +454,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     isogB.curve = CURVE_E0;
     isogB.degree[0] = POWER_OF_3;
     isogB.degree[1] = 0;
+    isogB.degree[2] = 0;
     ec_set_zero(&isogB.ker_minus);
     // kernel = P + beta * Q
     xDBLMUL(&isogB.ker_plus, &BASIS_THREE.P, one_scalar, &BASIS_THREE.Q, beta_scalar, &BASIS_THREE.PmQ, &isogB.curve);
@@ -479,6 +481,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     isogB_prime.curve = pk->EA;
     isogB_prime.degree[0] = TORSION_PLUS_ODD_POWERS[0];
     isogB_prime.degree[1] = 0;
+    isogB_prime.degree[2] = 0;
     ec_set_zero(&isogB_prime.ker_minus);
     // kernel = P + beta * Q
     xDBLMUL(&isogB_prime.ker_plus, &pk->PQ3.P, one_scalar, &pk->PQ3.Q, beta_scalar, &pk->PQ3.PmQ, &isogB_prime.curve);
