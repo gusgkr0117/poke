@@ -8,8 +8,7 @@ cd build
 cmake ..
 make precomp
 make
-ctest -V -R poke-test_orig
-ctest -V -R poke-test_inke*
+ctest -V -R poke-test*
 ```
 ## Output
 ```
