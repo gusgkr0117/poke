@@ -47,46 +47,24 @@ int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
     return 1;
 }
 
-int eval_dimtwo_isog_xy(theta_chain_t *phi, ec_basis_t *evalPQ, ec_basis_t *PQ, theta_couple_curve_t *E01) {
+int eval_dimtwo_isog_with_middle(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQmid, ec_basis_t *evalPQ, ec_basis_t *PQ, theta_couple_curve_t *E01) {
     theta_couple_point_t output_points, input_points;
     ec_point_t imP, imQ, imPQ, imR, imS, imRS;
 
     input_points.P1 = PQ->P;
     ec_set_zero(&input_points.P2);
     theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
-    copy_point(&evalPQ->P, &output_points.P1);
+    copy_point(&evalPQmid->P, &output_points.P1);
 
     input_points.P1 = PQ->Q;
     ec_set_zero(&input_points.P2);
     theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
-    copy_point(&evalPQ->Q, &output_points.P1);
+    copy_point(&evalPQmid->Q, &output_points.P1);
 
     input_points.P1 = PQ->PmQ;
     ec_set_zero(&input_points.P2);
     theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
-    copy_point(&evalPQ->PmQ, &output_points.P1);
-
-    return 1;
-}
-
-int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_t *PQ, theta_couple_curve_t *E01) {
-    theta_couple_point_t output_points, input_points;
-    ec_point_t imP, imQ, imPQ, imR, imS, imRS;
-
-    input_points.P1 = PQ->P;
-    ec_set_zero(&input_points.P2);
-    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
-    copy_point(&imP, &output_points.P1);
-
-    input_points.P1 = PQ->Q;
-    ec_set_zero(&input_points.P2);
-    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
-    copy_point(&imQ, &output_points.P1);
-
-    input_points.P1 = PQ->PmQ;
-    ec_set_zero(&input_points.P2);
-    theta_chain_eval_special_case(&output_points, phi, &input_points, E01);
-    copy_point(&imPQ, &output_points.P1);
+    copy_point(&evalPQmid->PmQ, &output_points.P1);
 
     ec_basis_t RS;
     ec_curve_to_basis_3(&RS, &E01->E2);
@@ -121,10 +99,10 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     lift_basis(&jacR, &jacS, &RS, &E01->E2);
 
-    ec_dlog_3(x, y, &imRS_basis, &imP, &phi->codomain.E1);
+    ec_dlog_3(x, y, &imRS_basis, &evalPQmid->P, &phi->codomain.E1);
     ec_point_t test_point;
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-    if (!ec_is_equal(&test_point, &imP)) {
+    if (!ec_is_equal(&test_point, &evalPQmid->P)) {
         printf("x*R + y*S != imP\n");
         return 0;
     }
@@ -133,9 +111,9 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
 
-    ec_dlog_3(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
+    ec_dlog_3(x, y, &imRS_basis, &evalPQmid->Q, &phi->codomain.E1);
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-    if (!ec_is_equal(&test_point, &imQ)) {
+    if (!ec_is_equal(&test_point, &evalPQmid->Q)) {
         printf("x*R + y*S != imQ\n");
         return 0;
     }
@@ -155,7 +133,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     ibz_to_digits(x, &t1);
     ibz_to_digits(y, &t2);
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-    if (!ec_is_equal(&test_point, &imPQ)) {
+    if (!ec_is_equal(&test_point, &evalPQmid->PmQ)) {
         // test otherwise
         ibz_add(&t1, &t1, &t3);
         ibz_add(&t1, &t1, &t3);
@@ -168,7 +146,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
         ibz_to_digits(x, &t1);
         ibz_to_digits(y, &t2);
         xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-        assert(ec_is_equal(&test_point, &imPQ));
+        assert(ec_is_equal(&test_point, &evalPQmid->PmQ));
         jac_neg(&evalQ, &evalQ);
     }
 
@@ -296,7 +274,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     isog.degree[2] = 0;
     ec_curve_t E1;
 
-    ec_eval_odd_basis(&E1, &isog, &E0_two, 1);
+    ec_eval_three(&E1, &isog, (ec_point_t*)&E0_two, 3);
 
 
     // Evaluating the theta-based 2-dim isogeny
@@ -360,8 +338,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     copy_point(&eval_points.Q, &E0_three.Q);
     copy_point(&eval_points.PmQ, &E0_three.PmQ);
     
-    eval_dimtwo_isog(&hd_isog, &deg, &imPQ3, &eval_points, &E01);
-    eval_dimtwo_isog_xy(&hd_isog, &imPQ31, &eval_points, &E01);
+    eval_dimtwo_isog_with_middle(&hd_isog, &deg, &imPQ31, &imPQ3, &eval_points, &E01);
 
     // copy_point(&eval_points.P, &BASIS_C.P);
     // copy_point(&eval_points.Q, &BASIS_C.Q);
@@ -449,7 +426,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
 
     eval_basis[0] = E0_two;
     // eval_basis[1] = E0_xy;
-    ec_eval_odd_basis(&EB, &isogB, eval_basis, 1);
+    ec_eval_three(&EB, &isogB, (ec_point_t*)eval_basis, 3);
     // curve_print("EB : ", EB);
     // point_print("eval_basis[0].P : ", eval_basis[0].P);
     // point_print("eval_basis[0].Q : ", eval_basis[0].Q);
@@ -480,7 +457,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     xDBLMUL(&isogB_prime1.ker_plus, &pk->PQA13.P, one_scalar, &pk->PQA13.Q, beta_scalar, &pk->PQA13.PmQ, &isogB_prime1.curve);
     
     // eval_basis[0] = EA1_xy;
-    ec_eval_odd_basis(&EA1B, &isogB_prime1, &eval_basis[0], 0);
+    ec_eval_three(&EA1B, &isogB_prime1, (ec_point_t*)&eval_basis[0], 0);
     // EA1_xy = eval_basis[0];
 
     // Masking evaluated basis points
@@ -499,7 +476,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     xDBLMUL(&isogB_prime.ker_plus, &pk->PQ3.P, one_scalar, &pk->PQ3.Q, beta_scalar, &pk->PQ3.PmQ, &isogB_prime.curve);
 
     eval_basis[0] = EA_two;
-    ec_eval_odd_basis(&EAB, &isogB_prime, eval_basis, 1);
+    ec_eval_three(&EAB, &isogB_prime, (ec_point_t*)eval_basis, 3);
     EA_two = eval_basis[0];
 
     ct->EAB = EAB;

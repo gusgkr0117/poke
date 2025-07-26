@@ -280,7 +280,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     isog.degree[1] = 0;
     ec_curve_t E1;
 
-    ec_eval_odd_basis(&E1, &isog, &E0_two, 1);
+    ec_eval_three(&E1, &isog, (ec_point_t *)&E0_two, 3);
 
     // Evaluating the theta-based 2-dim isogeny
     theta_couple_curve_t E01;
@@ -463,7 +463,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     
     eval_basis[0] = E0_two;
     eval_basis[1] = E0_xy;
-    ec_eval_odd_basis(&EB, &isogB, eval_basis, 2);
+    ec_eval_three(&EB, &isogB, (ec_point_t*)eval_basis, 6);
     E0_two = eval_basis[0];
     E0_xy = eval_basis[1];
 
@@ -489,7 +489,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
 
     eval_basis[0] = EA_two;
     eval_basis[1] = EA_xy;
-    ec_eval_odd_basis(&EAB, &isogB_prime, eval_basis, 2);
+    ec_eval_three(&EAB, &isogB_prime, (ec_point_t*)eval_basis, 6);
     EA_two = eval_basis[0];
     EA_xy = eval_basis[1];
 
