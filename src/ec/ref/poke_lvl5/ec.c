@@ -2314,6 +2314,8 @@ void ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, con
     digit_t scalarP6[NWORDS_ORDER] = {0}, scalarQ6[NWORDS_ORDER] = {0};
     digit_t scalarP5[NWORDS_ORDER] = {0}, scalarQ5[NWORDS_ORDER] = {0};
     ibz_t iP6, iQ6, iP5, iQ5, t1, t2, t3;
+    memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+    memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
 
     ibz_init(&iP6);
     ibz_init(&iQ6);

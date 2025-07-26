@@ -2314,6 +2314,8 @@ void ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, con
     digit_t scalarP6[NWORDS_ORDER] = {0}, scalarQ6[NWORDS_ORDER] = {0};
     digit_t scalarP5[NWORDS_ORDER] = {0}, scalarQ5[NWORDS_ORDER] = {0};
     ibz_t iP6, iQ6, iP5, iQ5, t1, t2, t3;
+    memset(scalarP, 0, NWORDS_ORDER * RADIX / 8);
+    memset(scalarQ, 0, NWORDS_ORDER * RADIX / 8);
 
     ibz_init(&iP6);
     ibz_init(&iQ6);
@@ -2408,6 +2410,7 @@ void ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, con
     ibz_to_digits(scalarQ, &iQ6);
 
     xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
+    // point_print("test_point : ", test_point);
     if(!ec_is_equal(&test_point, R)){
         ibz_copy_digits(&iP6, scalarP6, NWORDS_ORDER);
         ibz_copy_digits(&iQ6, scalarQ6, NWORDS_ORDER);
@@ -2425,6 +2428,12 @@ void ec_dlog_235(digit_t *scalarP, digit_t *scalarQ, const ec_basis_t *base, con
     // Test if the computed scalars are correct
     xDBLMUL(&test_point, &base->P, scalarP, &base->Q, scalarQ, &base->PmQ, E);
     if (!ec_is_equal(&test_point, R)) {
+        point_print("base->P : ", base->P);
+        point_print("base->Q : ", base->Q);
+        point_print("base->PmQ : ", base->PmQ);
+        point_print("test_point : ", test_point);
+        point_print("R : ", *R);
+        curve_print("E : ", *E);
         printf("Error: x*P + y*Q != R (235)\n");
         return;
     }
