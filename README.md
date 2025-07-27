@@ -1,15 +1,22 @@
-# 🥗POKÉ : POint-based Key Exchange
-+ C-Implementation of the most efficient isogeny-based PKE protocol
+# 🥗POKÉ : POint-based Key Exchange and ✒️INKE : INtermediate-curve-based Key Exchange
++ C-Implementation of the most efficient isogeny-based PKE protocols
++ Clang should be used
 
 # How-to-use
+## Install Clang
+```bash
+sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+```
+
 ## Run POKE
 ```bash
 cd build
-cmake ..
+cmake -DCMAKE_C_COMPILER=clang ..
 make precomp
 make
 ctest -V -R poke-test*
 ```
+
 ## Output
 ```
 test 13
