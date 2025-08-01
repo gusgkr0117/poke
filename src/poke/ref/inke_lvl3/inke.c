@@ -1,4 +1,4 @@
-#include <poke.h>
+#include <inke.h>
 #include <hd.h>
 #include <endomorphism_action.h>
 #include <torsion_constants.h>
@@ -168,7 +168,7 @@ int eval_dimtwo_isog_with_middle(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalP
     return 1;
 }
 
-int keygen(poke_sk_t *sk, poke_pk_t *pk) {
+int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     ibz_t q, alpha, beta, gamma, gamma1, rhs, deg;
     ibz_t A, q_bound;
     ec_point_t pointT;
@@ -376,7 +376,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     return 1; 
 }
 
-int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const size_t m_len) {
+int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const size_t m_len) {
     ibz_mat_2x2_t mask_xy;
     ec_isog_odd_t isogB, isogB_prime1, isogB_prime;
     ibz_t beta, omega, omega_inv, TT, A;
@@ -527,7 +527,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     return 1;
 }
 
-int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_t *sk) {
+int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_t *sk) {
     unsigned char hash_input[2 * NWORDS_FIELD * RADIX / 8] = {0};
     unsigned char hash_output[32] = {0};
     digit_t T1_scalar[NWORDS_ORDER] = {0}, T2_scalar[NWORDS_ORDER] = {0};

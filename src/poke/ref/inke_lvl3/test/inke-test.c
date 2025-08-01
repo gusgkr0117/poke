@@ -1,13 +1,13 @@
-#include <poke.h>
+#include <inke.h>
 #include <time.h>
 #include <stdlib.h>
 #include <rng.h>
 #include <bench.h>
 
-int test_poke(int bench_loops) {
-    poke_sk_t sk = {0};
-    poke_pk_t pk = {0};
-    poke_ct_t ct = {0};
+int test_inke(int bench_loops) {
+    inke_sk_t sk = {0};
+    inke_pk_t pk = {0};
+    inke_ct_t ct = {0};
     unsigned char m[32] = {0};
     unsigned char dec_m[32] = {0};
     size_t m_len = 0;
@@ -52,5 +52,5 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         loops = atoi(argv[1]);
     }
-    return test_poke(loops);
+    return test_inke(loops);
 } 
