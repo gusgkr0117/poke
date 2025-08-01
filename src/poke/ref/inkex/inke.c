@@ -182,8 +182,8 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     for(int i = 0; i < 1000; i++) {
         ibz_rand_interval(&q, &ibz_const_zero, &q_bound);
         ibz_sub(&deg, &A, &q);
-        if (ibz_divides(&q, &ibz_const_two) == 0 && ibz_divides(&q, &ibz_const_three) == 0 && ibz_divides(&q, &ibz_const_five) == 0
-            && ibz_divides(&deg, &ibz_const_three) == 0 && ibz_divides(&deg, &ibz_const_five) == 0) {
+        if (ibz_divides(&q, &ibz_const_two) == 0 && ibz_divides(&q, &ibz_const_three) == 0
+            && ibz_divides(&deg, &ibz_const_three) == 0) {
             break;
         }
     }
@@ -270,12 +270,12 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     }
     
     isog.degree[0] = TORSION_PLUS_ODD_POWERS[0];
-    isog.degree[1] = 0;
-    isog.degree[2] = 0;
+    for(int i = 1; i < P_LEN + M_LEN; i++) {
+        isog.degree[i] = 0;
+    }
     ec_curve_t E1;
 
     ec_eval_three(&E1, &isog, (ec_point_t*)&E0_two, 3);
-
 
     // Evaluating the theta-based 2-dim isogeny
     theta_couple_curve_t E01;
@@ -339,6 +339,7 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     copy_point(&eval_points.PmQ, &E0_three.PmQ);
     
     eval_dimtwo_isog_with_middle(&hd_isog, &deg, &imPQ31, &imPQ3, &eval_points, &E01);
+    // eval_dimtwo_isog_xy(&hd_isog, &imPQ31, &eval_points, &E01);
 
     // copy_point(&eval_points.P, &BASIS_C.P);
     // copy_point(&eval_points.Q, &BASIS_C.Q);
@@ -405,9 +406,9 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     copy_point(&E0_two.P, &BASIS_EVEN.P);
     copy_point(&E0_two.Q, &BASIS_EVEN.Q);
     copy_point(&E0_two.PmQ, &BASIS_EVEN.PmQ);
-    // point_print("E0_two.P : ", E0_two.P);
-    // point_print("E0_two.Q : ", E0_two.Q);
-    // point_print("E0_two.PmQ : ", E0_two.PmQ);
+    // copy_point(&E0_xy.P, &BASIS_C.P);
+    // copy_point(&E0_xy.Q, &BASIS_C.Q);
+    // copy_point(&E0_xy.PmQ, &BASIS_C.PmQ);
     copy_point(&EA_two.P, &pk->PQ2.P);
     copy_point(&EA_two.Q, &pk->PQ2.Q);
     copy_point(&EA_two.PmQ, &pk->PQ2.PmQ);
@@ -418,26 +419,21 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     // Compute the isogeny E0 -> EB
     isogB.curve = CURVE_E0;
     isogB.degree[0] = POWER_OF_3;
-    isogB.degree[1] = 0;
-    isogB.degree[2] = 0;
+    for(int i = 1; i < P_LEN + M_LEN; i++) {
+        isogB.degree[i] = 0;
+    }
     ec_set_zero(&isogB.ker_minus);
     // kernel = P + beta * Q
     xDBLMUL(&isogB.ker_plus, &BASIS_THREE.P, one_scalar, &BASIS_THREE.Q, beta_scalar, &BASIS_THREE.PmQ, &isogB.curve);
-
+    
     eval_basis[0] = E0_two;
-    // eval_basis[1] = E0_xy;
     ec_eval_three(&EB, &isogB, (ec_point_t*)eval_basis, 3);
-    // curve_print("EB : ", EB);
-    // point_print("eval_basis[0].P : ", eval_basis[0].P);
-    // point_print("eval_basis[0].Q : ", eval_basis[0].Q);
-    // point_print("eval_basis[0].PmQ : ", eval_basis[0].PmQ);
     E0_two = eval_basis[0];
     // E0_xy = eval_basis[1];
 
     ct->EB = EB;
 
     // Masking evaluated basis points
-    
     xMUL(&ct->PQ2_B.P, &E0_two.P, omega_scalar, &EB);
     xMUL(&ct->PQ2_B.Q, &E0_two.Q, omega_inv_scalar, &EB);
     xADD(&pointT, &E0_two.P, &E0_two.Q, &E0_two.PmQ);
@@ -450,8 +446,9 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     // Compute the isogeny EA1 -> EA1B
     isogB_prime1.curve = pk->EA1;
     isogB_prime1.degree[0] = POWER_OF_3;
-    isogB_prime1.degree[1] = 0;
-    isogB_prime1.degree[2] = 0;
+    for(int i = 1; i < P_LEN + M_LEN; i++) {
+        isogB_prime1.degree[i] = 0;
+    }
     ec_set_zero(&isogB_prime1.ker_minus);
     // kernel = P + beta * Q
     xDBLMUL(&isogB_prime1.ker_plus, &pk->PQA13.P, one_scalar, &pk->PQA13.Q, beta_scalar, &pk->PQA13.PmQ, &isogB_prime1.curve);
@@ -468,8 +465,9 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     // Compute the isogeny EA -> EAB
     isogB_prime.curve = pk->EA;
     isogB_prime.degree[0] = TORSION_PLUS_ODD_POWERS[0];
-    isogB_prime.degree[1] = 0;
-    isogB_prime.degree[2] = 0;
+    for(int i = 1; i < P_LEN + M_LEN; i++) {
+        isogB_prime.degree[i] = 0;
+    }
     ec_set_zero(&isogB_prime.ker_minus);
 
     // kernel = P + beta * Q
@@ -587,21 +585,6 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
     }
 
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
-
-    // eval_points.P = ct->PQxy_B.P;
-    // eval_points.Q = ct->PQxy_B.Q;
-    // eval_points.PmQ = ct->PQxy_B.PmQ;
-    // if (!eval_dimtwo_isog_xy(&hd_isog, &eval_points, &eval_points, &EBAB)) {
-    //     printf("Failed to evaluate the 2-dim isogeny\n");
-    //     return 0;
-    // }
-
-    // ec_normalize_point(&eval_points.P);
-    // ec_normalize_point(&eval_points.Q);
-    // ec_curve_normalize_A24(&hd_isog.codomain.E1);
-
-    // ec_normalize_point(&eval_points.P);
-    // ec_normalize_point(&eval_points.Q);
 
     fp2_t EA1B_j_inv;
     ec_j_inv(&EA1B_j_inv, &hd_isog.codomain.E1);
