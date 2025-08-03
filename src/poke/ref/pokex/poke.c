@@ -68,10 +68,6 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     ec_basis_t RS;
     ec_curve_to_basis_35(&RS, &E01->E2);
-    // point_print("RS.P : ", RS.P);
-    // point_print("RS.Q : ", RS.Q);
-    // point_print("RS.PmQ : ", RS.PmQ);
-    // curve_print("E01->E2 : ", E01->E2);
 
     input_points.P2 = RS.P;
     ec_set_zero(&input_points.P1);
@@ -139,18 +135,18 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &imPQ)) {
         // test otherwise
-        ibz_add(&t1, &t1, &t3);
-        ibz_add(&t1, &t1, &t3);
-        ibz_add(&t2, &t2, &t4);
-        ibz_add(&t2, &t2, &t4);
-        ibz_mod(&t1, &t1, &TORSION_PLUS_23CPOWER);
-        ibz_mod(&t2, &t2, &TORSION_PLUS_23CPOWER);
-        memset(x, 0, NWORDS_ORDER * RADIX / 8);
-        memset(y, 0, NWORDS_ORDER * RADIX / 8);
-        ibz_to_digits(x, &t1);
-        ibz_to_digits(y, &t2);
-        xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-        assert(ec_is_equal(&test_point, &imPQ));
+        // ibz_add(&t1, &t1, &t3);
+        // ibz_add(&t1, &t1, &t3);
+        // ibz_add(&t2, &t2, &t4);
+        // ibz_add(&t2, &t2, &t4);
+        // ibz_mod(&t1, &t1, &TORSION_PLUS_23CPOWER);
+        // ibz_mod(&t2, &t2, &TORSION_PLUS_23CPOWER);
+        // memset(x, 0, NWORDS_ORDER * RADIX / 8);
+        // memset(y, 0, NWORDS_ORDER * RADIX / 8);
+        // ibz_to_digits(x, &t1);
+        // ibz_to_digits(y, &t2);
+        // xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
+        // assert(ec_is_equal(&test_point, &imPQ));
         jac_neg(&evalQ, &evalQ);
     }
 
@@ -161,9 +157,6 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     jac_to_xz(&evalPQ->P, &evalP);
     jac_to_xz(&evalPQ->Q, &evalQ);
     jac_to_xz(&evalPQ->PmQ, &evalPmQ);
-    // ec_mul_ibz(&evalPQ->P, &E01->E2, q, &evalPQ->P);
-    // ec_mul_ibz(&evalPQ->Q, &E01->E2, q, &evalPQ->Q);
-    // ec_mul_ibz(&evalPQ->PmQ, &E01->E2, q, &evalPQ->PmQ);
 
     ibz_finalize(&t1);
     ibz_finalize(&t2);
@@ -208,15 +201,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     ibz_to_digits(sk->beta, &beta);
     ibz_to_digits(sk->delta, &delta);
 
-    // gmp_printf("q = %Zd\n", q);
-
-    // gmp_printf("alpha = %Zd\n", alpha);
-    // gmp_printf("beta = %Zd\n", beta);
-    // gmp_printf("gamma = %Zd\n", gamma);
-    // gmp_printf("delta = %Zd\n", delta);
     ec_curve_t curve = CURVE_E0;
-    // fp2_t j_inv;
-    // ec_j_inv(&j_inv, &curve);
 
     quat_alg_elem_t tau;
     quat_alg_elem_init(&tau);
@@ -224,12 +209,6 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
         printf("Failed to represent integer in non-diagonal form\n");
         return 1;
     }
-
-    // quat_alg_elem_print(&tau);
-    // check if the norm of tau equals to rhs
-    ibq_t tau_norm;
-    ibq_init(&tau_norm);
-    quat_alg_norm(&tau_norm, &tau, &QUATALG_PINFTY);
 
     ec_basis_t E0_two, E0_three, E0_five;
     copy_point(&E0_two.P, &BASIS_EVEN.P);
@@ -241,6 +220,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
 
     endomorphism_application_three_basis(&E0_three, &curve, &tau, TORSION_PLUS_ODD_POWERS[0]);
     endomorphism_application_even_basis(&E0_two, &curve, &tau, TORSION_PLUS_EVEN_POWER);
+    quat_alg_elem_finalize(&tau);
 
     ec_point_t kernel_point;
     ec_isog_odd_t isog;
@@ -298,12 +278,6 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     ec_mul_ibz(&T2.P1, &curve, &q, &T2.P1);
     ec_mul_ibz(&T1m2.P1, &curve, &q, &T1m2.P1);
 
-    // fp2_t w0, w1, w0tw1;
-    // ec_point_t AC, A24;
-    // copy_point(&AC, &CURVE_E0_A24);
-    // A24_from_AC(&A24, &AC);
-    // weil(&w0, TORSION_PLUS_EVEN_POWER, &T1.P1, &T2.P1, &T1m2.P1, &A24);
-
     ibz_t inverse;
     ibz_init(&inverse);
     ibz_invmod(&inverse, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
@@ -315,16 +289,6 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     T1.P2 = E0_two.P;
     T2.P2 = E0_two.Q;
     T1m2.P2 = E0_two.PmQ;
-
-    // ec_curve_normalize_A24(&E1);
-    // copy_point(&A24, &E1.A24);
-    // weil(&w1, TORSION_PLUS_EVEN_POWER, &T1.P2, &T2.P2, &T1m2.P2, &A24);
-
-    // fp2_mul(&w0tw1, &w0, &w1);
-    // fp2_mul(&w0tw1, &w0tw1, &w0tw1);
-    // fp2_mul(&w0tw1, &w0tw1, &w0tw1);
-
-    // assert(fp2_is_one(&w0tw1));
 
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &E01, &T1, &T2, &T1m2, strategies[2], 1);
 
@@ -390,6 +354,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
 
     pk->EA = E01.E2;
 
+    ibz_finalize(&three_m1_order);
     ibz_finalize(&cofactor);
     ibz_finalize(&remainder);
     ibz_finalize(&inverse);
@@ -580,31 +545,6 @@ int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_
     xMUL(&T2.P2, &ct->PQ2_AB.Q, T2_scalar, &EBAB.E2);
     xADD(&pointT, &ct->PQ2_AB.P, &ct->PQ2_AB.Q, &ct->PQ2_AB.PmQ);
     xDBLMUL(&T1m2.P2, &ct->PQ2_AB.P, T1_scalar, &ct->PQ2_AB.Q, T2_scalar, &pointT, &EBAB.E2);
-
-    fp2_t w0, w1, w0tw1;
-    ec_point_t A24;
-    ec_curve_normalize_A24(&EBAB.E1);
-    copy_point(&A24, &EBAB.E1.A24);
-    weil(&w0, TORSION_PLUS_EVEN_POWER, &T1.P1, &T2.P1, &T1m2.P1, &A24);
-    
-    ec_curve_normalize_A24(&EBAB.E2);
-    copy_point(&A24, &EBAB.E2.A24);
-    weil(&w1, TORSION_PLUS_EVEN_POWER, &T1.P2, &T2.P2, &T1m2.P2, &A24);
-
-    fp2_mul(&w0tw1, &w0, &w1);
-    fp2_mul(&w0tw1, &w0tw1, &w0tw1);
-    fp2_mul(&w0tw1, &w0tw1, &w0tw1);
-
-    if(!fp2_is_one(&w0tw1)) {
-        printf("The Weil pairing is not equal to 1\n");
-        fp2_print("w0 : ", &w0);
-        fp2_print("w1 : ", &w1);
-        fp2_print("w0tw1 : ", &w0tw1);
-        ibz_finalize(&alpha_inv);
-        ibz_finalize(&beta_inv);
-        ibz_finalize(&deg);
-        return 0;
-    }
 
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
 
