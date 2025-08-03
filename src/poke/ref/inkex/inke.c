@@ -135,18 +135,18 @@ int eval_dimtwo_isog_with_middle(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalP
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &evalPQmid->PmQ)) {
         // test otherwise
-        ibz_add(&t1, &t1, &t3);
-        ibz_add(&t1, &t1, &t3);
-        ibz_add(&t2, &t2, &t4);
-        ibz_add(&t2, &t2, &t4);
-        ibz_mod(&t1, &t1, &TORSION_PLUS_3POWER);
-        ibz_mod(&t2, &t2, &TORSION_PLUS_3POWER);
-        memset(x, 0, NWORDS_ORDER * RADIX / 8);
-        memset(y, 0, NWORDS_ORDER * RADIX / 8);
-        ibz_to_digits(x, &t1);
-        ibz_to_digits(y, &t2);
-        xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-        assert(ec_is_equal(&test_point, &evalPQmid->PmQ));
+        // ibz_add(&t1, &t1, &t3);
+        // ibz_add(&t1, &t1, &t3);
+        // ibz_add(&t2, &t2, &t4);
+        // ibz_add(&t2, &t2, &t4);
+        // ibz_mod(&t1, &t1, &TORSION_PLUS_3POWER);
+        // ibz_mod(&t2, &t2, &TORSION_PLUS_3POWER);
+        // memset(x, 0, NWORDS_ORDER * RADIX / 8);
+        // memset(y, 0, NWORDS_ORDER * RADIX / 8);
+        // ibz_to_digits(x, &t1);
+        // ibz_to_digits(y, &t2);
+        // xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
+        // assert(ec_is_equal(&test_point, &evalPQmid->PmQ));
         jac_neg(&evalQ, &evalQ);
     }
 
@@ -157,9 +157,6 @@ int eval_dimtwo_isog_with_middle(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalP
     jac_to_xz(&evalPQ->P, &evalP);
     jac_to_xz(&evalPQ->Q, &evalQ);
     jac_to_xz(&evalPQ->PmQ, &evalPmQ);
-    // ec_mul_ibz(&evalPQ->P, &E01->E2, q, &evalPQ->P);
-    // ec_mul_ibz(&evalPQ->Q, &E01->E2, q, &evalPQ->Q);
-    // ec_mul_ibz(&evalPQ->PmQ, &E01->E2, q, &evalPQ->PmQ);
 
     ibz_finalize(&t1);
     ibz_finalize(&t2);
@@ -202,27 +199,13 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     ibz_to_digits(sk->alpha, &alpha);
     ibz_to_digits(sk->beta, &beta);
 
-    // gmp_printf("q = %Zd\n", q);
-
-    // gmp_printf("alpha = %Zd\n", alpha);
-    // gmp_printf("beta = %Zd\n", beta);
-    // gmp_printf("gamma = %Zd\n", gamma);
     ec_curve_t curve = CURVE_E0;
-    // fp2_t j_inv;
-    // ec_j_inv(&j_inv, &curve);
-
     quat_alg_elem_t tau;
     quat_alg_elem_init(&tau);
     if(represent_integer(&tau, &rhs, &QUATALG_PINFTY) == 0) {
         printf("Failed to represent integer in non-diagonal form\n");
         return 1;
     }
-
-    // quat_alg_elem_print(&tau);
-    // check if the norm of tau equals to rhs
-    ibq_t tau_norm;
-    ibq_init(&tau_norm);
-    quat_alg_norm(&tau_norm, &tau, &QUATALG_PINFTY);
 
     ec_basis_t E0_two, E0_three, E0_five;
     copy_point(&E0_two.P, &BASIS_EVEN.P);
@@ -234,6 +217,7 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     
     endomorphism_application_three_basis(&E0_three, &curve, &tau, TORSION_PLUS_ODD_POWERS[0]);
     endomorphism_application_even_basis(&E0_two, &curve, &tau, TORSION_PLUS_EVEN_POWER);
+    quat_alg_elem_finalize(&tau);
 
     ec_point_t kernel_point;
     ec_isog_odd_t isog;
@@ -291,12 +275,6 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     ec_mul_ibz(&T2.P1, &curve, &q, &T2.P1);
     ec_mul_ibz(&T1m2.P1, &curve, &q, &T1m2.P1);
 
-    // fp2_t w0, w1, w0tw1;
-    // ec_point_t AC, A24;
-    // copy_point(&AC, &CURVE_E0_A24);
-    // A24_from_AC(&A24, &AC);
-    // weil(&w0, TORSION_PLUS_EVEN_POWER, &T1.P1, &T2.P1, &T1m2.P1, &A24);
-
     ibz_t inverse;
     ibz_init(&inverse);
     ibz_invmod(&inverse, &TORSION_PLUS_3POWER, &TORSION_PLUS_2POWER);
@@ -308,16 +286,6 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     T1.P2 = E0_two.P;
     T2.P2 = E0_two.Q;
     T1m2.P2 = E0_two.PmQ;
-
-    // ec_curve_normalize_A24(&E1);
-    // copy_point(&A24, &E1.A24);
-    // weil(&w1, TORSION_PLUS_EVEN_POWER, &T1.P2, &T2.P2, &T1m2.P2, &A24);
-
-    // fp2_mul(&w0tw1, &w0, &w1);
-    // fp2_mul(&w0tw1, &w0tw1, &w0tw1);
-    // fp2_mul(&w0tw1, &w0tw1, &w0tw1);
-
-    // assert(fp2_is_one(&w0tw1));
 
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &E01, &T1, &T2, &T1m2, strategies[2], 1);
 
@@ -339,11 +307,6 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     copy_point(&eval_points.PmQ, &E0_three.PmQ);
     
     eval_dimtwo_isog_with_middle(&hd_isog, &deg, &imPQ31, &imPQ3, &eval_points, &E01);
-    // eval_dimtwo_isog_xy(&hd_isog, &imPQ31, &eval_points, &E01);
-
-    // copy_point(&eval_points.P, &BASIS_C.P);
-    // copy_point(&eval_points.Q, &BASIS_C.Q);
-    // copy_point(&eval_points.PmQ, &BASIS_C.PmQ);
 
     // Compute P2, Q2
     ec_mul(&pk->PQ2.P, &E01.E2, sk->alpha, &tmp_basis.P);
@@ -363,6 +326,7 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     pk->EA1 = hd_isog.codomain.E1;
     pk->EA = E01.E2;
 
+    ibz_finalize(&three_m1_order);
     ibz_finalize(&remainder);
     ibz_finalize(&inverse);
     ibz_finalize(&q);
@@ -406,15 +370,9 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     copy_point(&E0_two.P, &BASIS_EVEN.P);
     copy_point(&E0_two.Q, &BASIS_EVEN.Q);
     copy_point(&E0_two.PmQ, &BASIS_EVEN.PmQ);
-    // copy_point(&E0_xy.P, &BASIS_C.P);
-    // copy_point(&E0_xy.Q, &BASIS_C.Q);
-    // copy_point(&E0_xy.PmQ, &BASIS_C.PmQ);
     copy_point(&EA_two.P, &pk->PQ2.P);
     copy_point(&EA_two.Q, &pk->PQ2.Q);
     copy_point(&EA_two.PmQ, &pk->PQ2.PmQ);
-    // copy_point(&EA1_xy.P, &pk->PQxy.P);
-    // copy_point(&EA1_xy.Q, &pk->PQxy.Q);
-    // copy_point(&EA1_xy.PmQ, &pk->PQxy.PmQ);
 
     // Compute the isogeny E0 -> EB
     isogB.curve = CURVE_E0;
@@ -429,7 +387,6 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     eval_basis[0] = E0_two;
     ec_eval_three(&EB, &isogB, (ec_point_t*)eval_basis, 3);
     E0_two = eval_basis[0];
-    // E0_xy = eval_basis[1];
 
     ct->EB = EB;
 
@@ -438,10 +395,6 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     xMUL(&ct->PQ2_B.Q, &E0_two.Q, omega_inv_scalar, &EB);
     xADD(&pointT, &E0_two.P, &E0_two.Q, &E0_two.PmQ);
     xDBLMUL(&ct->PQ2_B.PmQ, &E0_two.P, omega_scalar, &E0_two.Q, omega_inv_scalar, &pointT, &EB);
-
-    // xDBLMUL(&ct->PQxy_B.P, &E0_xy.P, mask_xy_scalar[0], &E0_xy.Q, mask_xy_scalar[1], &E0_xy.PmQ, &EB);
-    // xDBLMUL(&ct->PQxy_B.Q, &E0_xy.P, mask_xy_scalar[2], &E0_xy.Q, mask_xy_scalar[3], &E0_xy.PmQ, &EB);
-    // xDBLMUL(&ct->PQxy_B.PmQ, &E0_xy.P, mask_xy_scalar[4], &E0_xy.Q, mask_xy_scalar[5], &E0_xy.PmQ, &EB);
 
     // Compute the isogeny EA1 -> EA1B
     isogB_prime1.curve = pk->EA1;
@@ -453,14 +406,7 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     // kernel = P + beta * Q
     xDBLMUL(&isogB_prime1.ker_plus, &pk->PQA13.P, one_scalar, &pk->PQA13.Q, beta_scalar, &pk->PQA13.PmQ, &isogB_prime1.curve);
     
-    // eval_basis[0] = EA1_xy;
     ec_eval_three(&EA1B, &isogB_prime1, (ec_point_t*)&eval_basis[0], 0);
-    // EA1_xy = eval_basis[0];
-
-    // Masking evaluated basis points
-    // xDBLMUL(&EA1B_xy.P, &EA1_xy.P, mask_xy_scalar[0], &EA1_xy.Q, mask_xy_scalar[1], &EA1_xy.PmQ, &EA1B);
-    // xDBLMUL(&EA1B_xy.Q, &EA1_xy.P, mask_xy_scalar[2], &EA1_xy.Q, mask_xy_scalar[3], &EA1_xy.PmQ, &EA1B);
-    // xDBLMUL(&EA1B_xy.PmQ, &EA1_xy.P, mask_xy_scalar[4], &EA1_xy.Q, mask_xy_scalar[5], &EA1_xy.PmQ, &EA1B);
 
     // Compute the isogeny EA -> EAB
     isogB_prime.curve = pk->EA;
@@ -485,24 +431,14 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     xADD(&pointT, &EA_two.P, &EA_two.Q, &EA_two.PmQ);
     xDBLMUL(&ct->PQ2_AB.PmQ, &EA_two.P, omega_scalar, &EA_two.Q, omega_inv_scalar, &pointT, &EAB);
 
-    // TODO : ct <- SHA256(EA1B_xy.P || EA1B_xy.Q) xor m
     unsigned char hash_input[2 * NWORDS_FIELD * RADIX / 8] = {0};
     unsigned char hash_output[32] = {0};
-
-    // ec_normalize_point(&EA1B_xy.P);
-    // ec_normalize_point(&EA1B_xy.Q);
 
     fp2_t EA1B_j_inv;
     ec_j_inv(&EA1B_j_inv, &EA1B);
 
     memcpy(hash_input, &EA1B_j_inv.re[0], NWORDS_FIELD * RADIX / 8);
     memcpy(hash_input + NWORDS_FIELD * RADIX / 8, &EA1B_j_inv.im[0], NWORDS_FIELD * RADIX / 8);
-    // memcpy(hash_input + 2 * NWORDS_FIELD * RADIX / 8, &EA1B_xy.Q.x.re[0], NWORDS_FIELD * RADIX / 8);
-    // memcpy(hash_input + 3 * NWORDS_FIELD * RADIX / 8, &EA1B_xy.Q.x.im[0], NWORDS_FIELD * RADIX / 8);
-    
-    // curve_print("EA1B : ", EA1B);
-    // point_print("EA1B_xy.P : ", EA1B_xy.P);
-    // point_print("EA1B_xy.Q : ", EA1B_xy.Q);
 
     SHAKE256(hash_output, sizeof(hash_output), hash_input, sizeof(hash_input));
 
@@ -559,31 +495,6 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
     xADD(&pointT, &ct->PQ2_AB.P, &ct->PQ2_AB.Q, &ct->PQ2_AB.PmQ);
     xDBLMUL(&T1m2.P2, &ct->PQ2_AB.P, T1_scalar, &ct->PQ2_AB.Q, T2_scalar, &pointT, &EBAB.E2);
 
-    fp2_t w0, w1, w0tw1;
-    ec_point_t A24;
-    ec_curve_normalize_A24(&EBAB.E1);
-    copy_point(&A24, &EBAB.E1.A24);
-    weil(&w0, TORSION_PLUS_EVEN_POWER, &T1.P1, &T2.P1, &T1m2.P1, &A24);
-    
-    ec_curve_normalize_A24(&EBAB.E2);
-    copy_point(&A24, &EBAB.E2.A24);
-    weil(&w1, TORSION_PLUS_EVEN_POWER, &T1.P2, &T2.P2, &T1m2.P2, &A24);
-
-    fp2_mul(&w0tw1, &w0, &w1);
-    fp2_mul(&w0tw1, &w0tw1, &w0tw1);
-    fp2_mul(&w0tw1, &w0tw1, &w0tw1);
-
-    if(!fp2_is_one(&w0tw1)) {
-        printf("The Weil pairing is not equal to 1\n");
-        fp2_print("w0 : ", &w0);
-        fp2_print("w1 : ", &w1);
-        fp2_print("w0tw1 : ", &w0tw1);
-        ibz_finalize(&alpha_inv);
-        ibz_finalize(&beta_inv);
-        ibz_finalize(&deg);
-        return 0;
-    }
-
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
 
     fp2_t EA1B_j_inv;
@@ -591,15 +502,6 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
 
     memcpy(hash_input, &EA1B_j_inv.re[0], NWORDS_FIELD * RADIX / 8);
     memcpy(hash_input + NWORDS_FIELD * RADIX / 8, &EA1B_j_inv.im[0], NWORDS_FIELD * RADIX / 8);
-
-    // memcpy(hash_input, &eval_points.P.x.re[0], NWORDS_FIELD * RADIX / 8);
-    // memcpy(hash_input + NWORDS_FIELD * RADIX / 8, &eval_points.P.x.im[0], NWORDS_FIELD * RADIX / 8);
-    // memcpy(hash_input + 2 * NWORDS_FIELD * RADIX / 8, &eval_points.Q.x.re[0], NWORDS_FIELD * RADIX / 8);
-    // memcpy(hash_input + 3 * NWORDS_FIELD * RADIX / 8, &eval_points.Q.x.im[0], NWORDS_FIELD * RADIX / 8);
-
-    // curve_print("EA1B :", hd_isog.codomain.E1);
-    // point_print("EA1B_xy.P : ", eval_points.P);
-    // point_print("EA1B_xy.Q : ", eval_points.Q);
 
     SHAKE256(hash_output, sizeof(hash_output), hash_input, sizeof(hash_input));
 
