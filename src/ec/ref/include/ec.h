@@ -354,6 +354,16 @@ void ec_complete_basis_2(ec_basis_t *PQ2, const ec_curve_t *curve, const ec_poin
 void ec_curve_to_basis_3(ec_basis_t *PQ3, const ec_curve_t *curve);
 
 /**
+ * @brief Generate a 5^h-torsion basis
+ *
+ * The algorithm is deterministic
+ *
+ * @param PQ5 the computed 5^h-torsion basis
+ * @param curve a curve
+ */
+void ec_curve_to_basis_5(ec_basis_t *PQ5, const ec_curve_t *curve);
+
+/**
  * @brief Generate a 6^e-torsion basis
  *
  * The algorithm is deterministic

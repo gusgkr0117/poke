@@ -36,6 +36,10 @@ static digit_t p_cofactor_for_2f[5] = { 0xbd94329674e2c7f7, 0x0422d789525e827b, 
 static digit_t p_cofactor_for_3g[3] = { 0x0000000000000000, 0x0000000000000000, 0x000000000000007f };
 #define P_COFACTOR_FOR_3G_BITLENGTH 135
 
+// p+1 divided by the power of 5
+static digit_t p_cofactor_for_5h[7] = { 0x9999999999999999, 0x9999999999999999, 0xbf840a1e17608e64, 0xcda09181dd461a18, 0xee5a3ff6a0edf9b0, 0x21c0f451ec6bd7f9, 0x000000000000002b };
+#define P_COFACTOR_FOR_5H_BITLENGTH 390
+
 // p+1 divided by the powers of 2 and 3
 static digit_t p_cofactor_for_6fg[1] = { 0x000000000000007f };
 #define P_COFACTOR_FOR_6FG_BITLENGTH 7

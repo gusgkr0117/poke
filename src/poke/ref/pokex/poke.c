@@ -47,7 +47,7 @@ int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
     return 1;
 }
 
-int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_t *PQ, theta_couple_curve_t *E01) {
+int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_t *PQ, theta_couple_curve_t *E01, bool is_five) {
     theta_couple_point_t output_points, input_points;
     ec_point_t imP, imQ, imPQ, imR, imS, imRS;
 
@@ -67,7 +67,8 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     copy_point(&imPQ, &output_points.P1);
 
     ec_basis_t RS;
-    ec_curve_to_basis_35(&RS, &E01->E2);
+    if (is_five) ec_curve_to_basis_5(&RS, &E01->E2);
+    else ec_curve_to_basis_35(&RS, &E01->E2);
 
     input_points.P2 = RS.P;
     ec_set_zero(&input_points.P1);
@@ -99,7 +100,8 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     lift_basis(&jacR, &jacS, &RS, &E01->E2);
 
-    ec_dlog_35(x, y, &imRS_basis, &imP, &phi->codomain.E1);
+    if (is_five) ec_dlog_5(x, y, &imRS_basis, &imP, &phi->codomain.E1);
+    else ec_dlog_35(x, y, &imRS_basis, &imP, &phi->codomain.E1);
     ec_point_t test_point;
 
     ibz_copy_digits(&t1, x, NWORDS_ORDER);
@@ -107,7 +109,8 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
 
-    ec_dlog_35(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
+    if (is_five) ec_dlog_5(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
+    else ec_dlog_35(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
     
     ibz_copy_digits(&t3, x, NWORDS_ORDER);
     ibz_copy_digits(&t4, y, NWORDS_ORDER);
@@ -118,8 +121,16 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     // If not, evalQ = -evalQ
     ibz_sub(&t1, &t1, &t3);
     ibz_sub(&t2, &t2, &t4);
-    ibz_mod(&t1, &t1, &TORSION_PLUS_23CPOWER);
-    ibz_mod(&t2, &t2, &TORSION_PLUS_23CPOWER);
+    
+    if (is_five) {
+        ibz_mod(&t1, &t1, &TORSION_PLUS_CPOWER);
+        ibz_mod(&t2, &t2, &TORSION_PLUS_CPOWER);
+    } else {
+        ibz_mod(&t1, &t1, &TORSION_PLUS_3CPOWER);
+        ibz_mod(&t2, &t2, &TORSION_PLUS_3CPOWER);
+    }
+    // ibz_mod(&t1, &t1, &TORSION_PLUS_23CPOWER);
+    // ibz_mod(&t2, &t2, &TORSION_PLUS_23CPOWER);
     memset(x, 0, NWORDS_ORDER * RADIX / 8);
     memset(y, 0, NWORDS_ORDER * RADIX / 8);
     ibz_to_digits(x, &t1);
@@ -301,7 +312,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     jac_to_xz(&eval_points.Q, &Q23x);
     jac_to_xz(&eval_points.PmQ, &PmQ23x);
     
-    eval_dimtwo_isog(&hd_isog, &deg, &imPQ23x, &eval_points, &E01);
+    eval_dimtwo_isog(&hd_isog, &deg, &imPQ23x, &eval_points, &E01, false);
 
     ibz_t cofactor;
     // Compute X_A, Y_B
@@ -531,7 +542,7 @@ int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_
     eval_points.Q = ct->PQxy_B.Q;
     eval_points.PmQ = ct->PQxy_B.PmQ;
     ibz_sub(&deg, &A, &deg);
-    if (!eval_dimtwo_isog(&hd_isog, &deg, &eval_points, &eval_points, &EBAB)) {
+    if (!eval_dimtwo_isog(&hd_isog, &deg, &eval_points, &eval_points, &EBAB, true)) {
         printf("Failed to evaluate the 2-dim isogeny\n");
         return 0;
     }

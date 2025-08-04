@@ -578,6 +578,118 @@ ec_curve_to_basis_3(ec_basis_t *PQ3, const ec_curve_t *curve)
 }
 
 void
+ec_curve_to_basis_5(ec_basis_t *PQ5, const ec_curve_t *curve)
+{
+
+    fp2_t x, t0, t1, t2;
+    ec_point_t P, Q, Q5, P5, A24, A3;
+
+    // Curve coefficient in the form A24 = (A+2C:4C)
+    fp2_add(&A24.z, &curve->C, &curve->C);
+    fp2_add(&A24.x, &curve->A, &A24.z);
+    fp2_add(&A24.z, &A24.z, &A24.z);
+
+    // Curve coefficient in the form A3 = (A+2C:A-2C)
+    fp2_sub(&A3.z, &A24.x, &A24.z);
+    fp2_copy(&A3.x, &A24.x);
+
+    fp2_set_one(&x);
+
+    // Find P
+    while (1) {
+        fp_add(&(x.im), &(x.re), &(x.im));
+
+        // Check if point is rational
+        fp2_sqr(&t0, &curve->C);
+        fp2_mul(&t1, &t0, &x);
+        fp2_mul(&t2, &curve->A, &curve->C);
+        fp2_add(&t1, &t1, &t2);
+        fp2_mul(&t1, &t1, &x);
+        fp2_add(&t1, &t1, &t0);
+        fp2_mul(&t1, &t1, &x);
+        if (fp2_is_square(&t1)) {
+            fp2_copy(&P.x, &x);
+            fp2_set_one(&P.z);
+        } else
+            continue;
+
+        // Clear non-5 factors from the order
+        xMULv2(&P, &P, p_cofactor_for_5h, (int)P_COFACTOR_FOR_5H_BITLENGTH, &A24);
+
+        // Check if point has order 5^h
+        copy_point(&P5, &P);
+        for (int i = 0; i < POWER_OF_5 - 1; i++)
+            xMUL_FIVE(&P5, &P5, &A3, &A24);
+        if (ec_is_zero(&P5))
+            continue;
+        else
+            break;
+    }
+
+    // Find Q
+    while (1) {
+        fp_add(&(x.im), &(x.re), &(x.im));
+
+        // Check if point is rational
+        fp2_sqr(&t0, &curve->C);
+        fp2_mul(&t1, &t0, &x);
+        fp2_mul(&t2, &curve->A, &curve->C);
+        fp2_add(&t1, &t1, &t2);
+        fp2_mul(&t1, &t1, &x);
+        fp2_add(&t1, &t1, &t0);
+        fp2_mul(&t1, &t1, &x);
+        if (fp2_is_square(&t1)) {
+            fp2_copy(&Q.x, &x);
+            fp2_set_one(&Q.z);
+        } else
+            continue;
+
+        // Clear non-5 factors from the order
+        xMULv2(&Q, &Q, p_cofactor_for_5h, (int)P_COFACTOR_FOR_5H_BITLENGTH, &A24);
+
+        // Check if point has order 5^h
+        copy_point(&Q5, &Q);
+        for (int i = 0; i < POWER_OF_5 - 1; i++)
+            xMUL_FIVE(&Q5, &Q5, &A3, &A24);
+        if (ec_is_zero(&Q5))
+            continue;
+
+        // Check if point is orthogonal to P
+        if (is_point_equal(&P5, &Q5))
+            continue;
+        xDBL_A24(&P5, &P5, &A24);
+        if (is_point_equal(&P5, &Q5))
+            continue;
+        else
+            break;
+    }
+
+    // Normalize points
+    ec_curve_t E;
+    ec_curve_init(&E);
+
+    fp2_mul(&t0, &P.z, &Q.z);
+    fp2_mul(&t1, &t0, &curve->C);
+    fp2_inv(&t1);
+    fp2_mul(&P.x, &P.x, &t1);
+    fp2_mul(&Q.x, &Q.x, &t1);
+    fp2_mul(&E.A, &curve->A, &t1);
+    fp2_mul(&P.x, &P.x, &Q.z);
+    fp2_mul(&P.x, &P.x, &curve->C);
+    fp2_mul(&Q.x, &Q.x, &P.z);
+    fp2_mul(&Q.x, &Q.x, &curve->C);
+    fp2_mul(&E.A, &E.A, &t0);
+    fp2_set_one(&P.z);
+    fp2_copy(&Q.z, &P.z);
+    fp2_copy(&E.C, &P.z);
+
+    // Compute P-Q
+    difference_point(&PQ5->PmQ, &P, &Q, &E);
+    copy_point(&PQ5->P, &P);
+    copy_point(&PQ5->Q, &Q);
+}
+
+void
 ec_curve_to_basis_6(ec_basis_t *PQ6, const ec_curve_t *curve)
 {
 
