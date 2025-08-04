@@ -1,13 +1,11 @@
 set(SOURCE_FILES_EC_${SVARIANT_UPPER}_REF
-    # ${ECX_DIR}/ec.c
+    ${POKE_ECX_DIR}/ec.c
     ${ECX_DIR}/kps.c
     ${ECX_DIR}/xisog.c
     ${ECX_DIR}/xeval.c
     ${ECX_DIR}/isog_chains.c
-    # ${ECX_DIR}/basis.c
+    ${POKE_ECX_DIR}/basis.c
     ${ECX_DIR}/biextension.c
-    ec.c
-    basis.c
 )
 
 add_library(${LIB_EC_${SVARIANT_UPPER}} ${SOURCE_FILES_EC_${SVARIANT_UPPER}_REF})

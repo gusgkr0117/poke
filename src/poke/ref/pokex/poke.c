@@ -101,22 +101,14 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     ec_dlog_35(x, y, &imRS_basis, &imP, &phi->codomain.E1);
     ec_point_t test_point;
-    xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-    if (!ec_is_equal(&test_point, &imP)) {
-        printf("x*R + y*S != imP\n");
-        return 0;
-    }
+
     ibz_copy_digits(&t1, x, NWORDS_ORDER);
     ibz_copy_digits(&t2, y, NWORDS_ORDER);
 
     DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
 
     ec_dlog_35(x, y, &imRS_basis, &imQ, &phi->codomain.E1);
-    xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-    if (!ec_is_equal(&test_point, &imQ)) {
-        printf("x*R + y*S != imQ\n");
-        return 0;
-    }
+    
     ibz_copy_digits(&t3, x, NWORDS_ORDER);
     ibz_copy_digits(&t4, y, NWORDS_ORDER);
 
@@ -134,19 +126,6 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     ibz_to_digits(y, &t2);
     xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
     if (!ec_is_equal(&test_point, &imPQ)) {
-        // test otherwise
-        // ibz_add(&t1, &t1, &t3);
-        // ibz_add(&t1, &t1, &t3);
-        // ibz_add(&t2, &t2, &t4);
-        // ibz_add(&t2, &t2, &t4);
-        // ibz_mod(&t1, &t1, &TORSION_PLUS_23CPOWER);
-        // ibz_mod(&t2, &t2, &TORSION_PLUS_23CPOWER);
-        // memset(x, 0, NWORDS_ORDER * RADIX / 8);
-        // memset(y, 0, NWORDS_ORDER * RADIX / 8);
-        // ibz_to_digits(x, &t1);
-        // ibz_to_digits(y, &t2);
-        // xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
-        // assert(ec_is_equal(&test_point, &imPQ));
         jac_neg(&evalQ, &evalQ);
     }
 
