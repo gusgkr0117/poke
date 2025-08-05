@@ -1862,8 +1862,8 @@ ec_dlog_5_step(digit_t *x,
 { // Based on Montgomery formulas using Jacobian coordinates
     int i, j;
     digit_t value = 1;
-    jac_point_t P, Q, TT, SS, YY, Te[POWER_OF_5 / 2],
-        Re[POWER_OF_5 / 2]; // Storage could be reduced to e points
+    jac_point_t P, Q, TT, SS, YY, Te[POWER_OF_5],
+        Re[POWER_OF_5]; // Storage could be reduced to e points
     jac_point_t PQep0[5][5] ,PQxy[5][5], PQep1[5][5];
 
     *x = 0;
