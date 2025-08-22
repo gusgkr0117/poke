@@ -11,6 +11,7 @@
 #include <gmp.h>
 #include <stdint.h>
 #include <tutil.h>
+#include <fips202.h>
 
 /** @defgroup ibz_all Signed big integers
  * @{
@@ -260,6 +261,12 @@ int64_t ibz_get(const ibz_t *i);
 
 // void ibz_printf(const char* format, ...);
 #define ibz_printf gmp_printf
+
+/** @brief generate random value in [a, b]
+ *  assumed that a >= 0 and b >= 0 and a < b
+ * @returns 1 on success, 0 on failiure
+ */
+int ibz_rand_interval_with_state(ibz_t *rand, const ibz_t *a, const ibz_t *b, shake256ctx *state);
 
 /** @brief generate random value in [a, b]
  *  assumed that a >= 0 and b >= 0 and a < b

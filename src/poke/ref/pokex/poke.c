@@ -11,15 +11,22 @@
 #include <biextension.h>
 #include <fips202.h>
 
-int ibz_random_matrix(ibz_mat_2x2_t mat22, const ibz_t *modulus) {
+int ibz_random_matrix(ibz_mat_2x2_t mat22, const ibz_t *modulus, shake256ctx *state) {
     ibz_t gcd, det;
     ibz_init(&gcd);
     ibz_init(&det);
     while (1) {
-        ibz_rand_interval(&mat22[0][0], &ibz_const_zero, modulus);
-        ibz_rand_interval(&mat22[0][1], &ibz_const_zero, modulus);
-        ibz_rand_interval(&mat22[1][0], &ibz_const_zero, modulus);
-        ibz_rand_interval(&mat22[1][1], &ibz_const_zero, modulus);
+        if (state != NULL) {
+            ibz_rand_interval_with_state(&mat22[0][0], &ibz_const_zero, modulus, state);
+            ibz_rand_interval_with_state(&mat22[0][1], &ibz_const_zero, modulus, state);
+            ibz_rand_interval_with_state(&mat22[1][0], &ibz_const_zero, modulus, state);
+            ibz_rand_interval_with_state(&mat22[1][1], &ibz_const_zero, modulus, state);
+        } else {
+            ibz_rand_interval(&mat22[0][0], &ibz_const_zero, modulus);
+            ibz_rand_interval(&mat22[0][1], &ibz_const_zero, modulus);
+            ibz_rand_interval(&mat22[1][0], &ibz_const_zero, modulus);
+            ibz_rand_interval(&mat22[1][1], &ibz_const_zero, modulus);
+        }
         ibz_mul(&det, &mat22[0][0], &mat22[1][1]);
         ibz_mul(&gcd, &mat22[0][1], &mat22[1][0]);
         ibz_sub(&det, &det, &gcd);
@@ -33,11 +40,15 @@ int ibz_random_matrix(ibz_mat_2x2_t mat22, const ibz_t *modulus) {
     return 1;
 }
 
-int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
+int ibz_random_unit(ibz_t *q, const ibz_t *modulus, shake256ctx *state) {
     ibz_t gcd;
     ibz_init(&gcd);
     while (1) {
-        ibz_rand_interval(q, &ibz_const_zero, modulus);
+        if (state != NULL) {
+            ibz_rand_interval_with_state(q, &ibz_const_zero, modulus, state);
+        } else {
+            ibz_rand_interval(q, &ibz_const_zero, modulus);
+        }
         ibz_gcd(&gcd, q, modulus);
         if (ibz_is_one(&gcd)) {
             break;
@@ -176,10 +187,10 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     }
     ibz_mul(&rhs, &deg, &q);
     ibz_mul(&rhs, &rhs, &TORSION_PLUS_3POWER);
-    ibz_random_unit(&alpha, &A);
-    ibz_random_unit(&beta, &A);
-    ibz_random_unit(&gamma, &TORSION_PLUS_3POWER);
-    ibz_random_unit(&delta, &TORSION_PLUS_CPOWER);
+    ibz_random_unit(&alpha, &A, NULL);
+    ibz_random_unit(&beta, &A, NULL);
+    ibz_random_unit(&gamma, &TORSION_PLUS_3POWER, NULL);
+    ibz_random_unit(&delta, &TORSION_PLUS_CPOWER, NULL);
 
     memset(&sk->deg, 0, NWORDS_ORDER * RADIX / 8);
     memset(&sk->alpha, 0, NWORDS_ORDER * RADIX / 8);
@@ -360,13 +371,14 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     return 1; 
 }
 
-int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const size_t m_len) {
+int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const size_t m_len, const unsigned char *seed, const size_t seed_len) {
     ibz_mat_2x2_t mask_xy;
     ec_isog_odd_t isogB, isogB_prime;
     ibz_t beta, omega, omega_inv, TT, A;
     ec_curve_t EB, EAB;
     ec_basis_t E0_two, E0_xy, EA_two, EA_xy, EAB_xy, eval_basis[2];
     ec_point_t pointT;
+    shake256ctx state;
 
     digit_t beta_scalar[NWORDS_ORDER] = {0}, omega_scalar[NWORDS_ORDER] = {0}, omega_inv_scalar[NWORDS_ORDER] = {0}, one_scalar[NWORDS_ORDER] = {1};
     digit_t mask_xy_scalar[6][NWORDS_ORDER] = {0};
@@ -379,13 +391,23 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
     ibz_mat_2x2_init(&mask_xy);
 
     ibz_div_2exp(&A, &TORSION_PLUS_2POWER, 2);
-    ibz_random_unit(&beta, &TORSION_PLUS_3POWER);
-    ibz_random_unit(&omega, &A);
+    if (seed != NULL) {
+        shake256_absorb(&state, seed, seed_len);
+        ibz_random_unit(&beta, &TORSION_PLUS_3POWER, &state);
+        ibz_random_unit(&omega, &A, &state);
+        ibz_random_matrix(mask_xy, &TORSION_PLUS_CPOWER, &state);
+        shake256_ctx_release(&state);
+    }
+    else {
+        ibz_random_unit(&beta, &TORSION_PLUS_3POWER, NULL);
+        ibz_random_unit(&omega, &A, NULL);
+        ibz_random_matrix(mask_xy, &TORSION_PLUS_CPOWER, NULL);
+    }
     ibz_invmod(&omega_inv, &omega, &A);
     ibz_to_digits(omega_scalar, &omega);
     ibz_to_digits(omega_inv_scalar, &omega_inv);
     ibz_to_digits(beta_scalar, &beta);
-    ibz_random_matrix(mask_xy, &TORSION_PLUS_CPOWER);
+   
     for(int i = 0; i < 4; i++) {
         ibz_to_digits(mask_xy_scalar[i], &mask_xy[i / 2][i % 2]);
     }
@@ -572,5 +594,128 @@ int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_
     ibz_finalize(&beta_inv);
     ibz_finalize(&deg);
     ibz_finalize(&A);
+    return 1;
+}
+
+////
+//// Key Encapsulation Mechanism using Fujisaki-Okamoto transform
+////
+
+const unsigned char *G_hash_str = "enc";
+const size_t G_hash_str_len = 3;
+
+int ct_encode(unsigned char *encoded_ct, poke_ct_t *ct) {
+    ec_basis_t added_basis;
+    jac_point_t P2, Q2, Px, Qx;
+    jac_point_t R, S, RmS;
+    // total_len += NWORDS_FIELD * 2; // EB
+    // total_len += NWORDS_ORDER * 6; // PQ2_B + PQxy_B -> 4/3 * lambda
+    // total_len += NWORDS_FIELD * 2; // EAB
+    // total_len += NWORDS_ORDER * 6; // PQ2_AB -> lambda
+    lift_basis(&P2, &Q2, &ct->PQ2_B, &ct->EB);
+    lift_basis(&Px, &Qx, &ct->PQxy_B, &ct->EB);
+    ADD(&R, &P2, &Px, &ct->EB);
+    ADD(&S, &Q2, &Qx, &ct->EB);
+    jac_neg(&RmS, &S);
+    ADD(&RmS, &R, &RmS, &ct->EB);
+    jac_to_xz(&added_basis.P, &R);
+    jac_to_xz(&added_basis.Q, &S);
+    jac_to_xz(&added_basis.PmQ, &RmS);
+
+    fp2_encode(encoded_ct, &ct->EB.A);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 2 / 8, &added_basis.P.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 4 / 8, &added_basis.Q.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 6 / 8, &added_basis.PmQ.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 8 / 8, &ct->EAB.A);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 10 / 8, &ct->PQ2_AB.P.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 12 / 8, &ct->PQ2_AB.Q.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 14 / 8, &ct->PQ2_AB.PmQ.x);
+
+    return 1;
+}
+
+int ct_decode(poke_ct_t *ct, const unsigned char *encoded_ct) {
+    ec_basis_t added_basis;
+    ibz_t five_inv, two_inv;
+    ibz_init(&five_inv); ibz_init(&two_inv);
+
+    fp2_decode(&ct->EB.A, encoded_ct);
+    fp2_decode(&added_basis.P.x, encoded_ct + NWORDS_FIELD * RADIX * 2 / 8);
+    fp2_decode(&added_basis.Q.x, encoded_ct + NWORDS_FIELD * RADIX * 4 / 8);
+    fp2_decode(&added_basis.PmQ.x, encoded_ct + NWORDS_FIELD * RADIX * 6 / 8);
+    fp2_set_one(&added_basis.P.z);
+    fp2_set_one(&added_basis.Q.z);
+    fp2_set_one(&added_basis.PmQ.z);
+    fp2_decode(&ct->EAB.A, encoded_ct + NWORDS_FIELD * RADIX * 8 / 8);
+    fp2_decode(&ct->PQ2_AB.P.x, encoded_ct + NWORDS_FIELD * RADIX * 10 / 8);
+    fp2_decode(&ct->PQ2_AB.Q.x, encoded_ct + NWORDS_FIELD * RADIX * 12 / 8);
+    fp2_decode(&ct->PQ2_AB.PmQ.x, encoded_ct + NWORDS_FIELD * RADIX * 14 / 8);
+    fp2_set_one(&ct->PQ2_AB.P.z);
+    fp2_set_one(&ct->PQ2_AB.Q.z);
+    fp2_set_one(&ct->PQ2_AB.PmQ.z);
+
+    ibz_invmod(&five_inv, &TORSION_PLUS_CPOWER, &TORSION_PLUS_2POWER);
+    ibz_invmod(&two_inv, &TORSION_PLUS_2POWER, &TORSION_PLUS_CPOWER);
+
+    ec_mul_ibz(&ct->PQ2_B.P, &ct->EB, &TORSION_PLUS_CPOWER, &added_basis.P);
+    ec_mul_ibz(&ct->PQ2_B.Q, &ct->EB, &TORSION_PLUS_CPOWER, &added_basis.Q);
+    ec_mul_ibz(&ct->PQ2_B.PmQ, &ct->EB, &TORSION_PLUS_CPOWER, &added_basis.PmQ);
+    ec_mul_ibz(&ct->PQ2_B.P, &ct->EB, &five_inv, &added_basis.P);
+    ec_mul_ibz(&ct->PQ2_B.Q, &ct->EB, &five_inv, &added_basis.Q);
+    ec_mul_ibz(&ct->PQ2_B.PmQ, &ct->EB, &five_inv, &added_basis.PmQ);
+
+    ec_mul_ibz(&ct->PQxy_B.P, &ct->EB, &TORSION_PLUS_2POWER, &added_basis.P);
+    ec_mul_ibz(&ct->PQxy_B.Q, &ct->EB, &TORSION_PLUS_2POWER, &added_basis.Q);
+    ec_mul_ibz(&ct->PQxy_B.PmQ, &ct->EB, &TORSION_PLUS_2POWER, &added_basis.PmQ);
+    ec_mul_ibz(&ct->PQxy_B.P, &ct->EB, &two_inv, &added_basis.P);
+    ec_mul_ibz(&ct->PQxy_B.Q, &ct->EB, &two_inv, &added_basis.Q);
+    ec_mul_ibz(&ct->PQxy_B.PmQ, &ct->EB, &two_inv, &added_basis.PmQ);
+
+    ibz_finalize(&five_inv);
+    ibz_finalize(&two_inv);
+
+    return 1;
+}
+
+int encaps(unsigned char *key, poke_ct_t *ct, const poke_pk_t *pk) {
+    unsigned char m[32];
+    unsigned char tt[32 + G_hash_str_len];
+    unsigned char gm[32];
+    unsigned char encoded_ct[32 + NWORDS_FIELD * 16 * RADIX / 8];
+
+    randombytes(m, 32);
+    memcpy(tt, G_hash_str, G_hash_str_len);
+    memcpy(tt, m, 32);
+    SHAKE256(gm, 32, tt, 32);
+    encrypt(ct, pk, m, 32, gm, 32);        // ct <- Enc(pk, m; G(m))
+    memcpy(encoded_ct, m, 32);
+    ct_encode(encoded_ct + 32, ct);
+    SHAKE256(key, 32, encoded_ct, 32 + NWORDS_FIELD * 16 * RADIX / 8);    // K <- H(m, ct)
+    return 1;
+}
+
+int decaps(unsigned char *key, poke_ct_t *ct, const poke_pk_t *pk, const poke_sk_t *sk, unsigned char *dummy_m) {
+    unsigned char m[32];
+    unsigned char tt[32 + G_hash_str_len];
+    unsigned char gm[32];
+    unsigned char test_ct_bytes[NWORDS_FIELD * 16 * RADIX / 8];
+    unsigned char ct_bytes[32 + NWORDS_FIELD * 16 * RADIX / 8];
+    size_t m_len;
+    poke_ct_t test_ct;
+
+    decrypt(m, &m_len, ct, sk);
+    memcpy(tt, G_hash_str, G_hash_str_len);
+    memcpy(tt, m, 32);
+    SHAKE256(gm, 32, tt, 32);
+    encrypt(&test_ct, pk, m, m_len, gm, 32);    // ct <- Enc(pk, m; G(m))
+    ct_encode(test_ct_bytes, &test_ct);
+    ct_encode(ct_bytes + 32, ct);
+    if (memcmp(ct_bytes + 32, test_ct_bytes, NWORDS_FIELD * 16 * RADIX / 8) != 0) {
+        memcpy(ct_bytes, dummy_m, 32);  // K <- H(s, ct)
+    } else {
+        memcpy(ct_bytes, m, 32);        // K <- H(m, ct)
+    }
+    SHAKE256(key, 32, ct_bytes, 32 + NWORDS_FIELD * 16 * RADIX / 8);
+
     return 1;
 }
