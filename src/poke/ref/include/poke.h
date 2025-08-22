@@ -47,6 +47,10 @@ typedef struct poke_ct_t {
     uint8_t ct[32];
 } poke_ct_t;
 
+int decaps(unsigned char *key, poke_ct_t *ct, const poke_pk_t *pk, const poke_sk_t *sk, unsigned char *dummy_m);
+int encaps(unsigned char *key, poke_ct_t *ct, const poke_pk_t *pk);
+int ct_encode(unsigned char *encoded_ct, poke_ct_t *ct);
+int ct_decode(poke_ct_t *ct, const unsigned char *encoded_ct);
 int keygen(poke_sk_t *sk, poke_pk_t *pk);
-int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const size_t m_len);
+int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const size_t m_len, const unsigned char *seed, const size_t seed_len);
 int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_t *sk);

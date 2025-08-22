@@ -1,4 +1,5 @@
 #include <intbig.h>
+#include <fips202.h>
 #include <rng.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -432,6 +433,42 @@ int64_t
 ibz_get(const ibz_t *i)
 {
     return (int64_t)mpz_get_si(*i);
+}
+
+int ibz_rand_interval_with_state(ibz_t *rand, const ibz_t *a, const ibz_t *b, shake256ctx *state) {
+    mpz_t tmp, bmina;
+    mpz_init(bmina);
+    mpz_sub(bmina, *b, *a);
+    
+    size_t len_bits = mpz_sizeinbase(bmina, 2);
+    size_t len_bytes = (len_bits + 7) / 8;
+    size_t sizeof_limb = sizeof(mp_limb_t);
+    size_t sizeof_limb_bits = sizeof_limb * 8;
+    size_t len_limbs = (len_bytes + sizeof_limb - 1) / sizeof_limb;
+
+    mp_limb_t mask = ((mp_limb_t)-1) >> (sizeof_limb_bits - (len_bits % sizeof_limb_bits));
+    size_t nblocks = len_bytes / SHAKE256_RATE;
+    mp_limb_t r[len_limbs];
+    uint8_t t[SHAKE256_RATE];
+    
+    do {
+        shake256_squeezeblocks((unsigned char*)r, nblocks, state);
+        if (len_bytes % SHAKE256_RATE) {
+            shake256_squeezeblocks(t, 1, state);
+            for (size_t i = 0; i < (len_bytes % SHAKE256_RATE); i++) {
+                ((unsigned char*)r)[i + nblocks * SHAKE256_RATE] = t[i];
+            }
+        }
+
+        r[len_limbs - 1] &= mask;
+        mpz_roinit_n(tmp, r, len_limbs);
+        if (mpz_cmp(tmp, bmina) <= 0)
+            break;
+    } while (1);
+
+    mpz_add(*rand, tmp, *a);
+    mpz_clear(bmina);
+    return 1;
 }
 
 /** @brief generate random value in [a, b] with rejection sampling
