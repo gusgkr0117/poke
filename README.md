@@ -11,7 +11,7 @@ sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 ## Run POKE
 ```bash
 cd build
-cmake -DCMAKE_C_COMPILER=clang ..
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release ..
 make precomp
 make
 ctest -V -R "poke-test*"
@@ -101,6 +101,7 @@ Total Test time (real) = 405.03 sec
 ```
 
 # Reference
++ [INKE paper](https://eprint.iacr.org/2025/1458)
 + [POKÉ paper](https://eprint.iacr.org/2024/624)
 + [SQISign git](https://github.com/SQISign/sqisign2d-west-ac24)
 + [fiat-crypto](https://github.com/mit-plv/fiat-crypto)
