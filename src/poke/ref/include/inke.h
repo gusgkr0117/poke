@@ -47,6 +47,10 @@ typedef struct inke_ct_t {
     uint8_t ct[32];
 } inke_ct_t;
 
+int decaps(unsigned char *key, inke_ct_t *ct, const inke_pk_t *pk, const inke_sk_t *sk, unsigned char *dummy_m);
+int encaps(unsigned char *key, inke_ct_t *ct, const inke_pk_t *pk);
+int ct_encode(unsigned char *encoded_ct, inke_ct_t *ct);
+int ct_decode(inke_ct_t *ct, const unsigned char *encoded_ct);
 int keygen(inke_sk_t *sk, inke_pk_t *pk);
-int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const size_t m_len);
+int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const size_t m_len, const unsigned char *seed, const size_t seed_len);
 int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_t *sk);

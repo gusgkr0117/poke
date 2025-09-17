@@ -33,11 +33,15 @@ int ibz_random_matrix(ibz_mat_2x2_t mat22, const ibz_t *modulus) {
     return 1;
 }
 
-int ibz_random_unit(ibz_t *q, const ibz_t *modulus) {
+int ibz_random_unit(ibz_t *q, const ibz_t *modulus, shake256ctx *state) {
     ibz_t gcd;
     ibz_init(&gcd);
     while (1) {
-        ibz_rand_interval(q, &ibz_const_zero, modulus);
+        if (state != NULL) {
+            ibz_rand_interval_with_state(q, &ibz_const_zero, modulus, state);
+        } else {
+            ibz_rand_interval(q, &ibz_const_zero, modulus);
+        }
         ibz_gcd(&gcd, q, modulus);
         if (ibz_is_one(&gcd)) {
             break;
@@ -165,10 +169,10 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     }
     ibz_mul(&rhs, &deg, &q);
     ibz_mul(&rhs, &rhs, &TORSION_PLUS_3POWER);
-    ibz_random_unit(&alpha, &A);
-    ibz_random_unit(&beta, &A);
-    ibz_random_unit(&gamma, &TORSION_PLUS_3POWER);
-    ibz_random_unit(&gamma1, &TORSION_PLUS_3POWER);
+    ibz_random_unit(&alpha, &A, NULL);
+    ibz_random_unit(&beta, &A, NULL);
+    ibz_random_unit(&gamma, &TORSION_PLUS_3POWER, NULL);
+    ibz_random_unit(&gamma1, &TORSION_PLUS_3POWER, NULL);
 
     memset(&sk->deg, 0, NWORDS_ORDER * RADIX / 8);
     memset(&sk->alpha, 0, NWORDS_ORDER * RADIX / 8);
@@ -320,13 +324,14 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     return 1; 
 }
 
-int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const size_t m_len) {
+int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const size_t m_len, const unsigned char *seed, const size_t seed_len) {
     ibz_mat_2x2_t mask_xy;
     ec_isog_odd_t isogB, isogB_prime1, isogB_prime;
     ibz_t beta, omega, omega_inv, TT, A;
     ec_curve_t EB, EA1B, EAB;
     ec_basis_t E0_two, E0_xy, EA_two, EA1_xy, EA1B_xy, eval_basis[2];
     ec_point_t pointT;
+    shake256ctx state;
 
     digit_t beta_scalar[NWORDS_ORDER] = {0}, omega_scalar[NWORDS_ORDER] = {0}, omega_inv_scalar[NWORDS_ORDER] = {0}, one_scalar[NWORDS_ORDER] = {1};
     digit_t mask_xy_scalar[6][NWORDS_ORDER] = {0};
@@ -339,8 +344,16 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     ibz_mat_2x2_init(&mask_xy);
 
     ibz_div_2exp(&A, &TORSION_PLUS_2POWER, 2);
-    ibz_random_unit(&beta, &TORSION_PLUS_3POWER);
-    ibz_random_unit(&omega, &A);
+    if (seed != NULL) {
+        shake256_absorb(&state, seed, seed_len);
+        ibz_random_unit(&beta, &TORSION_PLUS_3POWER, &state);
+        ibz_random_unit(&omega, &A, &state);
+        shake256_ctx_release(&state);
+    }
+    else {
+        ibz_random_unit(&beta, &TORSION_PLUS_3POWER, NULL);
+        ibz_random_unit(&omega, &A, NULL);
+    }
     ibz_invmod(&omega_inv, &omega, &A);
     ibz_to_digits(omega_scalar, &omega);
     ibz_to_digits(omega_inv_scalar, &omega_inv);
@@ -494,5 +507,96 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
     ibz_finalize(&alpha_inv);
     ibz_finalize(&beta_inv);
     ibz_finalize(&deg);
+    return 1;
+}
+
+////
+//// Key Encapsulation Mechanism using Fujisaki-Okamoto transform
+////
+
+const unsigned char G_hash_str[9] = "encrypt_";
+const size_t G_hash_str_len = 8;
+
+int ct_encode(unsigned char *encoded_ct, inke_ct_t *ct) {
+    jac_point_t P2, Q2, Px, Qx;
+    jac_point_t R, S, RmS;
+    // total_len += NWORDS_FIELD * 2; // EB
+    // total_len += NWORDS_ORDER * 6; // PQ2_B + PQxy_B -> 4/3 * lambda
+    // total_len += NWORDS_FIELD * 2; // EAB
+    // total_len += NWORDS_ORDER * 6; // PQ2_AB -> lambda
+
+    fp2_encode(encoded_ct, &ct->EB.A);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 2 / 8, &ct->PQ2_B.P.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 4 / 8, &ct->PQ2_B.Q.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 6 / 8, &ct->PQ2_B.PmQ.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 8 / 8, &ct->EAB.A);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 10 / 8, &ct->PQ2_AB.P.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 12 / 8, &ct->PQ2_AB.Q.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 14 / 8, &ct->PQ2_AB.PmQ.x);
+
+    return 1;
+}
+
+int ct_decode(inke_ct_t *ct, const unsigned char *encoded_ct) {
+    ec_basis_t added_basis;
+
+    fp2_decode(&ct->EB.A, encoded_ct);
+    fp2_decode(&ct->PQ2_B.P.x, encoded_ct + NWORDS_FIELD * RADIX * 2 / 8);
+    fp2_decode(&ct->PQ2_B.Q.x, encoded_ct + NWORDS_FIELD * RADIX * 4 / 8);
+    fp2_decode(&ct->PQ2_B.PmQ.x, encoded_ct + NWORDS_FIELD * RADIX * 6 / 8);
+    fp2_set_one(&ct->PQ2_B.P.z);
+    fp2_set_one(&ct->PQ2_B.Q.z);
+    fp2_set_one(&ct->PQ2_B.PmQ.z);
+    fp2_decode(&ct->EAB.A, encoded_ct + NWORDS_FIELD * RADIX * 8 / 8);
+    fp2_decode(&ct->PQ2_AB.P.x, encoded_ct + NWORDS_FIELD * RADIX * 10 / 8);
+    fp2_decode(&ct->PQ2_AB.Q.x, encoded_ct + NWORDS_FIELD * RADIX * 12 / 8);
+    fp2_decode(&ct->PQ2_AB.PmQ.x, encoded_ct + NWORDS_FIELD * RADIX * 14 / 8);
+    fp2_set_one(&ct->PQ2_AB.P.z);
+    fp2_set_one(&ct->PQ2_AB.Q.z);
+    fp2_set_one(&ct->PQ2_AB.PmQ.z);
+
+    return 1;
+}
+
+int encaps(unsigned char *key, inke_ct_t *ct, const inke_pk_t *pk) {
+    unsigned char m[32];
+    unsigned char tt[32 + G_hash_str_len];
+    unsigned char gm[32];
+    unsigned char encoded_ct[32 + NWORDS_FIELD * 16 * RADIX / 8];
+
+    randombytes(m, 32);
+    memcpy(tt, G_hash_str, G_hash_str_len);
+    memcpy(tt, m, 32);
+    SHAKE256(gm, 32, tt, 32);
+    encrypt(ct, pk, m, 32, gm, 32);        // ct <- Enc(pk, m; G(m))
+    memcpy(encoded_ct, m, 32);
+    ct_encode(encoded_ct + 32, ct);
+    SHAKE256(key, 32, encoded_ct, 32 + NWORDS_FIELD * 16 * RADIX / 8);    // K <- H(m, ct)
+    return 1;
+}
+
+int decaps(unsigned char *key, inke_ct_t *ct, const inke_pk_t *pk, const inke_sk_t *sk, unsigned char *dummy_m) {
+    unsigned char m[32];
+    unsigned char tt[32 + G_hash_str_len];
+    unsigned char gm[32];
+    unsigned char test_ct_bytes[NWORDS_FIELD * 16 * RADIX / 8];
+    unsigned char ct_bytes[32 + NWORDS_FIELD * 16 * RADIX / 8];
+    size_t m_len;
+    inke_ct_t test_ct;
+
+    decrypt(m, &m_len, ct, sk);
+    memcpy(tt, G_hash_str, G_hash_str_len);
+    memcpy(tt, m, 32);
+    SHAKE256(gm, 32, tt, 32);
+    encrypt(&test_ct, pk, m, m_len, gm, 32);    // ct <- Enc(pk, m; G(m))
+    ct_encode(test_ct_bytes, &test_ct);
+    ct_encode(ct_bytes + 32, ct);
+    if (memcmp(ct_bytes + 32, test_ct_bytes, NWORDS_FIELD * 16 * RADIX / 8) != 0) {
+        memcpy(ct_bytes, dummy_m, 32);  // K <- H(s, ct)
+    } else {
+        memcpy(ct_bytes, m, 32);        // K <- H(m, ct)
+    }
+    SHAKE256(key, 32, ct_bytes, 32 + NWORDS_FIELD * 16 * RADIX / 8);
+
     return 1;
 }
