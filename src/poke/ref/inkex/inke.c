@@ -514,8 +514,8 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
 //// Key Encapsulation Mechanism using Fujisaki-Okamoto transform
 ////
 
-const unsigned char *G_hash_str = "enc";
-const size_t G_hash_str_len = 3;
+const unsigned char G_hash_str[9] = "encrypt_";
+const size_t G_hash_str_len = 8;
 
 int ct_encode(unsigned char *encoded_ct, inke_ct_t *ct) {
     jac_point_t P2, Q2, Px, Qx;
