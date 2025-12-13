@@ -29,6 +29,14 @@ void xDBLMUL(ec_point_t *S,
              digit_t const *l,
              ec_point_t const *PQ,
              const ec_curve_t *curve);
+void xDBLMUL_bounded(ec_point_t *S,
+             ec_point_t const *P,
+             digit_t const *k,
+             ec_point_t const *Q,
+             digit_t const *l,
+             ec_point_t const *PQ,
+             const ec_curve_t *curve,
+             int f);
 
 #define is_point_equal ec_is_equal
 #define xADD ec_add

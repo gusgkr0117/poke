@@ -564,7 +564,7 @@ xDBLMUL_bounded(ec_point_t *S,
 
         // TODO : clean this
         // this is an ugly fix to avoid unnecessary operations
-        bool apply = (i <= f + 2 + (BITS - TORSION_PLUS_EVEN_POWER));
+        bool apply = (i <= f);
 
         h = r[2 * i] + r[2 * i + 1]; // in {0, 1, 2}
         maskk = 0 - (h & 1);

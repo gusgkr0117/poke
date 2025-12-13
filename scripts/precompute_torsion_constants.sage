@@ -35,6 +35,7 @@ defs = {
         'TORSION_3POWER_BYTES': (int(tors3part).bit_length() + 7) // 8,
         'TORSION_CPOWER_BYTES': (int(torsCpart).bit_length() + 7) // 8,
         'TORSION_23POWER_BYTES': (int(tors23part).bit_length() + 7) // 8,
+        'TORSION_3CPOWER_BYTES': (int(tors3Cpart).bit_length() + 7) // 8,
     } if use_cfactor == 1 else {
         'TORSION_2POWER_BYTES': (int(tors2part).bit_length() + 7) // 8,
         'TORSION_3POWER_BYTES': (int(tors3part).bit_length() + 7) // 8,
