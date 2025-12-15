@@ -1,3 +1,4 @@
 build/
 scripts/*.sage.py
 .cache/
+scripts/__pycache__/
