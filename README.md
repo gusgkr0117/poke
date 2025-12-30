@@ -1,4 +1,6 @@
 # 🥗POKÉ : POint-based Key Exchange and ✒️INKE : INtermediate-curve-based Key Exchange
+This implementation is based on [SQIsign](https://github.com/SQISign/sqisign2d-west-ac24) (Apache License 2.0) and has been modified.
+
 + C-Implementation of the most efficient isogeny-based PKE protocols
 + GMP must be installed
 + Clang should be used
