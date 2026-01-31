@@ -510,6 +510,59 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
     return 1;
 }
 
+int check_ct(const inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *seed, const size_t seed_len) {
+    ibz_mat_2x2_t mask_xy;
+    ec_isog_odd_t isogB, isogB_prime1, isogB_prime;
+    ibz_t beta;
+    ec_curve_t EB, EA1B, EAB;
+    ec_point_t pointT;
+    shake256ctx state;
+
+    digit_t beta_scalar[NWORDS_ORDER] = {0}, one_scalar[NWORDS_ORDER] = {1};
+
+    ibz_init(&beta);
+    // ibz_init(&omega);
+    // ibz_init(&omega_inv);
+    // ibz_init(&TT);
+    // ibz_init(&A);
+    // ibz_mat_2x2_init(&mask_xy);
+
+    // ibz_div_2exp(&A, &TORSION_PLUS_2POWER, 2);
+    if (seed != NULL) {
+        shake256_absorb(&state, seed, seed_len);
+        ibz_random_unit(&beta, &TORSION_PLUS_3POWER, &state);
+        // ibz_random_unit(&omega, &A, &state);
+        // shake256_ctx_release(&state);
+    }
+    else {
+        // Error: seed is required for checking
+        return 0;
+    }
+    // ibz_invmod(&omega_inv, &omega, &A);
+    // ibz_to_digits(omega_scalar, &omega);
+    // ibz_to_digits(omega_inv_scalar, &omega_inv);
+    ibz_to_digits(beta_scalar, &beta);
+
+
+    // Compute the isogeny E0 -> EB
+    isogB.curve = CURVE_E0;
+    isogB.degree[0] = POWER_OF_3;
+    for(int i = 1; i < P_LEN + M_LEN; i++) {
+        isogB.degree[i] = 0;
+    }
+    ec_set_zero(&isogB.ker_minus);
+    // kernel = P + beta * Q
+    xDBLMUL_bounded(&isogB.ker_plus, &BASIS_THREE.P, one_scalar, &BASIS_THREE.Q, beta_scalar, &BASIS_THREE.PmQ, &isogB.curve, TORSION_3POWER_BYTES * 8);
+    
+    ec_eval_three(&EB, &isogB, NULL, 0);
+
+    fp2_t j1, j2;
+    ec_j_inv(&j1, &EB);
+    ec_j_inv(&j2, &ct->EB);
+
+    return (fp2_is_equal(&j1, &j2) != 0);
+}
+
 ////
 //// Key Encapsulation Mechanism using Fujisaki-Okamoto transform
 ////
@@ -588,10 +641,8 @@ int decaps(unsigned char *key, inke_ct_t *ct, const inke_pk_t *pk, const inke_sk
     memcpy(tt, G_hash_str, G_hash_str_len);
     memcpy(tt, m, 32);
     SHAKE256(gm, 32, tt, 32);
-    encrypt(&test_ct, pk, m, m_len, gm, 32);    // ct <- Enc(pk, m; G(m))
-    ct_encode(test_ct_bytes, &test_ct);
     ct_encode(ct_bytes + 32, ct);
-    if (memcmp(ct_bytes + 32, test_ct_bytes, NWORDS_FIELD * 16 * RADIX / 8) != 0) {
+    if (check_ct(ct, pk, gm, 32) != 1) {
         memcpy(ct_bytes, dummy_m, 32);  // K <- H(s, ct)
     } else {
         memcpy(ct_bytes, m, 32);        // K <- H(m, ct)
