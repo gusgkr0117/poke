@@ -128,7 +128,7 @@ int eval_dimtwo_isog_with_middle(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalP
     memset(y, 0, NWORDS_ORDER * RADIX / 8);
     ibz_to_digits(x, &t1);
     ibz_to_digits(y, &t2);
-    xDBLMUL_bounded(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1, TORSION_3POWER_BYTES * 8);
+    ec_biscalar_mul_bounded(&test_point, &phi->codomain.E1, x, y, &imRS_basis, TORSION_3POWER_BYTES * 8);
     if (!ec_is_equal(&test_point, &evalPQmid->PmQ)) {
         jac_neg(&evalQ, &evalQ);
     }
@@ -294,8 +294,8 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     // Compute P2, Q2
     ec_mul(&pk->PQ2.P, &E01.E2, sk->alpha, &tmp_basis.P);
     ec_mul(&pk->PQ2.Q, &E01.E2, sk->beta, &tmp_basis.Q);
-    xADD(&pointT, &tmp_basis.P, &tmp_basis.Q, &tmp_basis.PmQ);
-    xDBLMUL_bounded(&pk->PQ2.PmQ, &tmp_basis.P, sk->alpha, &tmp_basis.Q, sk->beta, &pointT, &E01.E2, TORSION_2POWER_BYTES * 8);  
+    xADD(&tmp_basis.PmQ, &tmp_basis.P, &tmp_basis.Q, &tmp_basis.PmQ);
+    ec_biscalar_mul_bounded(&pk->PQ2.PmQ, &E01.E2, sk->alpha, sk->beta, &tmp_basis, TORSION_2POWER_BYTES * 8);  
 
     // Compute P3, Q3
     ec_mul_ibz(&pk->PQ3.P, &E01.E2, &gamma, &imPQ3.P);
@@ -374,7 +374,7 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     }
     ec_set_zero(&isogB.ker_minus);
     // kernel = P + beta * Q
-    xDBLMUL_bounded(&isogB.ker_plus, &BASIS_THREE.P, one_scalar, &BASIS_THREE.Q, beta_scalar, &BASIS_THREE.PmQ, &isogB.curve, TORSION_3POWER_BYTES * 8);
+    ec_biscalar_mul_bounded(&isogB.ker_plus, &isogB.curve, one_scalar, beta_scalar, &BASIS_THREE, TORSION_3POWER_BYTES * 8);
     
     eval_basis[0] = E0_two;
     ec_eval_three(&EB, &isogB, (ec_point_t*)eval_basis, 3);
@@ -385,8 +385,8 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     // Masking evaluated basis points
     xMUL(&ct->PQ2_B.P, &E0_two.P, omega_scalar, &EB);
     xMUL(&ct->PQ2_B.Q, &E0_two.Q, omega_inv_scalar, &EB);
-    xADD(&pointT, &E0_two.P, &E0_two.Q, &E0_two.PmQ);
-    xDBLMUL_bounded(&ct->PQ2_B.PmQ, &E0_two.P, omega_scalar, &E0_two.Q, omega_inv_scalar, &pointT, &EB, TORSION_2POWER_BYTES * 8);
+    xADD(&E0_two.PmQ, &E0_two.P, &E0_two.Q, &E0_two.PmQ);
+    ec_biscalar_mul_bounded(&ct->PQ2_B.PmQ, &EB, omega_scalar, omega_inv_scalar, &E0_two, TORSION_2POWER_BYTES * 8);
 
     // Compute the isogeny EA1 -> EA1B
     isogB_prime1.curve = pk->EA1;
@@ -396,7 +396,7 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     }
     ec_set_zero(&isogB_prime1.ker_minus);
     // kernel = P + beta * Q
-    xDBLMUL_bounded(&isogB_prime1.ker_plus, &pk->PQA13.P, one_scalar, &pk->PQA13.Q, beta_scalar, &pk->PQA13.PmQ, &isogB_prime1.curve, TORSION_3POWER_BYTES * 8);
+    ec_biscalar_mul_bounded(&isogB_prime1.ker_plus, &isogB_prime1.curve, one_scalar, beta_scalar, &pk->PQA13, TORSION_3POWER_BYTES * 8);
     
     ec_eval_three(&EA1B, &isogB_prime1, (ec_point_t*)&eval_basis[0], 0);
 
@@ -409,7 +409,7 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     ec_set_zero(&isogB_prime.ker_minus);
 
     // kernel = P + beta * Q
-    xDBLMUL_bounded(&isogB_prime.ker_plus, &pk->PQ3.P, one_scalar, &pk->PQ3.Q, beta_scalar, &pk->PQ3.PmQ, &isogB_prime.curve, TORSION_3POWER_BYTES * 8);
+    ec_biscalar_mul_bounded(&isogB_prime.ker_plus, &isogB_prime.curve, one_scalar, beta_scalar, &pk->PQ3, TORSION_3POWER_BYTES * 8);
 
     eval_basis[0] = EA_two;
     ec_eval_three(&EAB, &isogB_prime, (ec_point_t*)eval_basis, 3);
@@ -420,8 +420,8 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
     // Masking evaluated basis points
     xMUL(&ct->PQ2_AB.P, &EA_two.P, omega_scalar, &EAB);
     xMUL(&ct->PQ2_AB.Q, &EA_two.Q, omega_inv_scalar, &EAB);
-    xADD(&pointT, &EA_two.P, &EA_two.Q, &EA_two.PmQ);
-    xDBLMUL_bounded(&ct->PQ2_AB.PmQ, &EA_two.P, omega_scalar, &EA_two.Q, omega_inv_scalar, &pointT, &EAB, TORSION_2POWER_BYTES * 8);
+    xADD(&EA_two.PmQ, &EA_two.P, &EA_two.Q, &EA_two.PmQ);
+    ec_biscalar_mul_bounded(&ct->PQ2_AB.PmQ, &EAB, omega_scalar, omega_inv_scalar, &EA_two, TORSION_2POWER_BYTES * 8);
 
     unsigned char hash_input[2 * NWORDS_FIELD * RADIX / 8] = {0};
     unsigned char hash_output[32] = {0};
@@ -484,8 +484,8 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
     ibz_to_digits(T2_scalar, &beta_inv);
     xMUL(&T1.P2, &ct->PQ2_AB.P, T1_scalar, &EBAB.E2);
     xMUL(&T2.P2, &ct->PQ2_AB.Q, T2_scalar, &EBAB.E2);
-    xADD(&pointT, &ct->PQ2_AB.P, &ct->PQ2_AB.Q, &ct->PQ2_AB.PmQ);
-    xDBLMUL_bounded(&T1m2.P2, &ct->PQ2_AB.P, T1_scalar, &ct->PQ2_AB.Q, T2_scalar, &pointT, &EBAB.E2, TORSION_2POWER_BYTES * 8);
+    xADD(&ct->PQ2_AB.PmQ, &ct->PQ2_AB.P, &ct->PQ2_AB.Q, &ct->PQ2_AB.PmQ);
+    ec_biscalar_mul_bounded(&T1m2.P2, &EBAB.E2, T1_scalar, T2_scalar, &ct->PQ2_AB, TORSION_2POWER_BYTES * 8);
 
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
 

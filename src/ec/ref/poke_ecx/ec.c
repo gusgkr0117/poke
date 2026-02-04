@@ -35,6 +35,12 @@ ec_is_zero(ec_point_t const *P)
     return fp2_is_zero(&P->z);
 }
 
+uint32_t
+ec_has_zero_coordinate(const ec_point_t *P)
+{
+    return fp2_is_zero(&P->x) | fp2_is_zero(&P->z);
+}
+
 void
 ec_point_init(ec_point_t *P)
 { // Initialize point as identity element (1:0)
@@ -73,6 +79,24 @@ copy_curve(ec_curve_t *E1, ec_curve_t const *E2)
     fp2_copy(&(E1->C), &(E2->C));
     E1->is_A24_computed_and_normalized = E2->is_A24_computed_and_normalized;
     copy_point(&E1->A24, &E2->A24);
+}
+
+void
+xDBL_E0(ec_point_t *Q, const ec_point_t *P)
+{ // Doubling of a Montgomery point in projective coordinates (X:Z) on the curve E0 with (A:C) = (0:1).
+  // Input: projective Montgomery x-coordinates P = (XP:ZP), where xP=XP/ZP, and Montgomery curve constants (A:C) = (0:1). 
+  // Output: projective Montgomery x-coordinates Q <- 2*P = (XQ:ZQ) such that x(2P)=XQ/ZQ.
+    fp2_t t0, t1, t2;
+
+    fp2_add(&t0, &P->x, &P->z);
+    fp2_sqr(&t0, &t0);
+    fp2_sub(&t1, &P->x, &P->z);
+    fp2_sqr(&t1, &t1);
+    fp2_sub(&t2, &t0, &t1);
+    fp2_add(&t1, &t1, &t1);
+    fp2_mul(&Q->x, &t0, &t1);
+    fp2_add(&Q->z, &t1, &t2);
+    fp2_mul(&Q->z, &Q->z, &t2);
 }
 
 void
@@ -237,12 +261,60 @@ is_point_equal(const ec_point_t *P, const ec_point_t *Q)
     return fp2_is_zero(&t0);
 }
 
+uint32_t
+ec_is_two_torsion(const ec_point_t *P, const ec_curve_t *E)
+{
+    if (ec_is_zero(P))
+        return 0;
+
+    uint32_t x_is_zero, tmp_is_zero;
+    fp2_t t0, t1, t2;
+    fp2_add(&t0, &P->x, &P->z);
+    fp2_sqr(&t0, &t0);
+    fp2_sub(&t1, &P->x, &P->z);
+    fp2_sqr(&t1, &t1);
+    fp2_sub(&t2, &t0, &t1);
+    fp2_add(&t1, &t0, &t1);
+    fp2_mul(&t2, &t2, &E->A);
+    fp2_mul(&t1, &t1, &E->C);
+    fp2_add(&t1, &t1, &t1);
+    fp2_add(&t0, &t1, &t2); // 4 (CX^2+CZ^2+AXZ)
+
+    x_is_zero = fp2_is_zero(&P->x);
+    tmp_is_zero = fp2_is_zero(&t0);
+
+    // two torsion if x or x^2 + Ax + 1 is zero
+    return x_is_zero | tmp_is_zero;
+}
+
 void
 select_point(ec_point_t *Q, ec_point_t const *P1, ec_point_t const *P2, const digit_t option)
 { // Select points
   // If option = 0 then Q <- P1, else if option = 0xFF...FF then Q <- P2
     fp2_select(&(Q->x), &(P1->x), &(P2->x), option);
     fp2_select(&(Q->z), &(P1->z), &(P2->z), option);
+}
+
+void
+cswap_points(ec_point_t *P, ec_point_t *Q, const digit_t option)
+{ // Swap points in constant time
+  // If option = 0 then P <- P and Q <- Q, else if option = 0xFF...FF then P <- Q and Q <- P
+    digit_t temp;
+
+    for (int i = 0; i < NWORDS_FIELD; i++) {
+        temp = option & (P->x.re[i] ^ Q->x.re[i]);
+        P->x.re[i] = temp ^ P->x.re[i];
+        Q->x.re[i] = temp ^ Q->x.re[i];
+        temp = option & (P->x.im[i] ^ Q->x.im[i]);
+        P->x.im[i] = temp ^ P->x.im[i];
+        Q->x.im[i] = temp ^ Q->x.im[i];
+        temp = option & (P->z.re[i] ^ Q->z.re[i]);
+        P->z.re[i] = temp ^ P->z.re[i];
+        Q->z.re[i] = temp ^ Q->z.re[i];
+        temp = option & (P->z.im[i] ^ Q->z.im[i]);
+        P->z.im[i] = temp ^ P->z.im[i];
+        Q->z.im[i] = temp ^ Q->z.im[i];
+    }
 }
 
 void
@@ -460,22 +532,28 @@ xDBLMUL(ec_point_t *S,
     select_point(S, S, &R[2], maskk);
 }
 
-void
-xDBLMUL_bounded(ec_point_t *S,
-                ec_point_t const *P,
-                digit_t const *k,
-                ec_point_t const *Q,
-                digit_t const *l,
-                ec_point_t const *PQ,
-                const ec_curve_t *curve,
-                int f)
-{
+int xDBLMUL_bounded(ec_point_t *S,
+        const ec_point_t *P,
+        const digit_t *k,
+        const ec_point_t *Q,
+        const digit_t *l,
+        const ec_point_t *PQ,
+        const ec_curve_t *curve,
+        const int kbits)
+{ // The Montgomery biladder
+  // Input:  projective Montgomery points P=(XP:ZP) and Q=(XQ:ZQ) such that xP=XP/ZP and xQ=XQ/ZQ, scalars k and l of
+  //         bitlength kbits, the difference PQ=P-Q=(XPQ:ZPQ), and the Montgomery curve constants (A:C).
+  // Output: projective Montgomery point S <- k*P + l*Q = (XS:ZS) such that x(k*P + l*Q)=XS/ZS.
 
-    int i;
+    int i, A_is_zero;
     digit_t evens, mevens, bitk0, bitl0, maskk, maskl, temp, bs1_ip1, bs2_ip1, bs1_i, bs2_i, h;
     digit_t sigma[2] = { 0 }, pre_sigma = 0;
     digit_t k_t[NWORDS_ORDER], l_t[NWORDS_ORDER], one[NWORDS_ORDER] = { 0 }, r[2 * BITS] = { 0 };
-    ec_point_t A24, DIFF1a, DIFF1b, DIFF2a, DIFF2b, R[3] = { 0 }, T[3];
+    ec_point_t DIFF1a, DIFF1b, DIFF2a, DIFF2b, R[3] = { 0 }, T[3];
+
+    // differential additions formulas are invalid in this case
+    if (ec_has_zero_coordinate(P) | ec_has_zero_coordinate(Q) | ec_has_zero_coordinate(PQ))
+        return 0;
 
     // Derive sigma according to parity
     bitk0 = (k[0] & 1);
@@ -485,8 +563,7 @@ xDBLMUL_bounded(ec_point_t *S,
     sigma[0] = (bitk0 ^ 1);
     sigma[1] = (bitl0 ^ 1);
     evens = sigma[0] + sigma[1]; // Count number of even scalars
-    mevens =
-        0 - (evens & 1); // Mask mevens <- 0 if # even scalars = 0 or 2, otherwise mevens = 1...1
+    mevens = 0 - (evens & 1);    // Mask mevens <- 0 if # even of scalars = 0 or 2, otherwise mevens = 1...1
 
     // If k and l are both even or both odd, pick sigma = (0,1)
     sigma[0] = (sigma[0] & mevens);
@@ -500,12 +577,12 @@ xDBLMUL_bounded(ec_point_t *S,
     select_ct(l_t, l_t, l, maskl, NWORDS_ORDER);
 
     // Scalar recoding
-    for (i = 0; i < BITS; i++) {
+    for (i = 0; i < kbits; i++) {
         // If sigma[0] = 1 swap k_t and l_t
         maskk = 0 - (sigma[0] ^ pre_sigma);
         swap_ct(k_t, l_t, maskk, NWORDS_ORDER);
 
-        if (i == BITS - 1) {
+        if (i == kbits - 1) {
             bs1_ip1 = 0;
             bs2_ip1 = 0;
         } else {
@@ -539,81 +616,46 @@ xDBLMUL_bounded(ec_point_t *S,
 
     // Initialize DIFF2a <- P+Q, DIFF2b <- P-Q
     xADD(&R[2], &R[1], &R[2], PQ);
+    if (ec_has_zero_coordinate(&R[2]))
+        return 0; // non valid formulas
+
     fp2_copy(&DIFF2a.x, &R[2].x);
     fp2_copy(&DIFF2a.z, &R[2].z);
     fp2_copy(&DIFF2b.x, &PQ->x);
     fp2_copy(&DIFF2b.z, &PQ->z);
 
-    // fp2_add(&A24.x, &curve->C, &curve->C);    // Precomputation of A24=(A+2C:4C)
-    // fp2_add(&A24.z, &A24.x, &A24.x);
-    // fp2_add(&A24.x, &A24.x, &curve->A);
-
-    // normalizing
-    ec_curve_t E;
-    copy_curve(&E, curve);
-    ec_curve_normalize_A24(&E);
-    copy_point(&A24, &E.A24);
-
-    // T <- R
-    copy_point(&T[0], &R[0]);
-    copy_point(&T[1], &R[1]);
-    copy_point(&T[2], &R[2]);
+    A_is_zero = fp2_is_zero(&curve->A);
 
     // Main loop
-    for (i = BITS - 1; i >= 0; i--) {
-
-        // TODO : clean this
-        // this is an ugly fix to avoid unnecessary operations
-        bool apply = (i <= f);
-
+    for (i = kbits - 1; i >= 0; i--) {
         h = r[2 * i] + r[2 * i + 1]; // in {0, 1, 2}
         maskk = 0 - (h & 1);
-        if (apply) {
-            select_point(&T[0], &R[0], &R[1], maskk);
-        }
-
+        select_point(&T[0], &R[0], &R[1], maskk);
         maskk = 0 - (h >> 1);
-
-        if (apply) {
-            select_point(&T[0], &T[0], &R[2], maskk);
-            xDBL_A24_normalized(&T[0], &T[0], &A24);
+        select_point(&T[0], &T[0], &R[2], maskk);
+        if (A_is_zero) {
+            xDBL_E0(&T[0], &T[0]);
+        } else {
+            assert(fp2_is_one(&curve->A24.z));
+            xDBL_A24(&T[0], &T[0], &curve->A24);
         }
 
         maskk = 0 - r[2 * i + 1]; // in {0, 1}
-        if (apply) {
-            select_point(&T[1], &R[0], &R[1], maskk);
-            select_point(&T[2], &R[1], &R[2], maskk);
-        }
+        select_point(&T[1], &R[0], &R[1], maskk);
+        select_point(&T[2], &R[1], &R[2], maskk);
 
-        swap_points(&DIFF1a, &DIFF1b, maskk);
-        if (apply) {
-            xADD(&T[1], &T[1], &T[2], &DIFF1a);
-            xADD(&T[2], &R[0], &R[2], &DIFF2a);
-        }
+        cswap_points(&DIFF1a, &DIFF1b, maskk);
+        xADD(&T[1], &T[1], &T[2], &DIFF1a);
+        xADD(&T[2], &R[0], &R[2], &DIFF2a);
 
         // If hw (mod 2) = 1 then swap DIFF2a and DIFF2b
         maskk = 0 - (h & 1);
-        swap_points(&DIFF2a, &DIFF2b, maskk);
+        cswap_points(&DIFF2a, &DIFF2b, maskk);
 
         // R <- T
         copy_point(&R[0], &T[0]);
         copy_point(&R[1], &T[1]);
         copy_point(&R[2], &T[2]);
-
-        // fp2_copy(&t1,&R[0].z);
-        // fp2_inv(&t1);
-        // fp2_mul(&t1,&t1,&R[0].x);
-        // fp2_copy(&t2,&R[1].z);
-        // fp2_inv(&t2);
-        // fp2_mul(&t2,&t2,&R[1].x);
-        // fp2_copy(&t3,&R[2].z);
-        // fp2_inv(&t3);
-        // fp2_mul(&t3,&t3,&R[2].x);
-
-        // printf("%d %d %d %ld\n",f,BITS,i,h);
-        // fp2_print("",t1);
-        // fp2_print("",t2);
-        // fp2_print("",t3);
     }
 
     // Output R[evens]
@@ -621,6 +663,7 @@ xDBLMUL_bounded(ec_point_t *S,
 
     maskk = 0 - (bitk0 & bitl0);
     select_point(S, S, &R[2], maskk);
+    return 1;
 }
 
 void
@@ -2678,13 +2721,46 @@ ec_biscalar_mul(ec_point_t *res,
     xDBLMUL(res, &PQ->P, scalarP, &PQ->Q, scalarQ, &PQ->PmQ, curve);
 }
 
-void
+int
 ec_biscalar_mul_bounded(ec_point_t *res,
                         const ec_curve_t *curve,
                         const digit_t *scalarP,
                         const digit_t *scalarQ,
                         const ec_basis_t *PQ,
-                        int f)
+                        int kbits)
 {
-    xDBLMUL_bounded(res, &PQ->P, scalarP, &PQ->Q, scalarQ, &PQ->PmQ, curve, f);
+    if (fp2_is_zero(&PQ->PmQ.z))
+        return 0;
+
+    /* Differential additions behave badly when PmQ = (0:1), so we need to
+     * treat this case specifically. Since we assume P, Q are a basis, this
+     * can happen only if kbits==1 */
+    if (kbits == 1) {
+        // Sanity check: our basis should be given by 2-torsion points
+        if (!ec_is_two_torsion(&PQ->P, curve) || !ec_is_two_torsion(&PQ->Q, curve) ||
+            !ec_is_two_torsion(&PQ->PmQ, curve))
+            return 0;
+        digit_t bP, bQ;
+        bP = (scalarP[0] & 1);
+        bQ = (scalarQ[0] & 1);
+        if (bP == 0 && bQ == 0)
+            ec_point_init(res); //(1: 0)
+        else if (bP == 1 && bQ == 0)
+            copy_point(res, &PQ->P);
+        else if (bP == 0 && bQ == 1)
+            copy_point(res, &PQ->Q);
+        else if (bP == 1 && bQ == 1)
+            copy_point(res, &PQ->PmQ);
+        else // should never happen
+            assert(0);
+        return 1;
+    } else {
+        ec_curve_t E;
+        copy_curve(&E, curve);
+
+        if (!fp2_is_zero(&curve->A)) { // If A is not zero normalize
+            ec_curve_normalize_A24(&E);
+        }
+        return xDBLMUL_bounded(res, &PQ->P, scalarP, &PQ->Q, scalarQ, &PQ->PmQ, (const ec_curve_t *)&E, kbits);
+    }
 }
