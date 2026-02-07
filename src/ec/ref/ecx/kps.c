@@ -67,3 +67,10 @@ kps_t(uint64_t const i, ec_point_t const P, ec_point_t const A)
     for (j = 2; j < d; j++)
         yadd(&K[j], &K[j - 1], &K[0], &K[j - 2]); // y([j+1]P)
 }
+
+// Kernel computation required in the degree-3 isogeny evaluation
+void kps_3(const ec_point_t P, ec_point_t *K)
+{
+	fp2_sub(&K->x, &P.x, &P.z);
+	fp2_add(&K->z, &P.x, &P.z);
+}

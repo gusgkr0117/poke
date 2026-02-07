@@ -7,9 +7,15 @@ if not require_version(9, 8, print_message=True):
 
 ################################################################
 
-from parameters import p, B, Cfactor, use_cfactor, use_twist, f, Tpls, Tmin, Dcom, Dchall
+from parameters import lvl, p, B, Cfactor, use_cfactor, use_twist, f, Tpls, Tmin, Dcom, Dchall
 
 ################################################################
+
+exp_params = {1 : [128, 162, 18], 3 : [192, 243, 27], 5 : [256, 324, 36]}
+POWER_OF_2 = exp_params[lvl][0]
+POWER_OF_3 = exp_params[lvl][1]
+if use_cfactor: POWER_OF_C = exp_params[lvl][2]
+else: POWER_OF_C = 1
 
 Lpls = sorted(set(Tpls.prime_factors()) - {2})
 Epls = [Tpls.valuation(l) for l in Lpls]
@@ -21,11 +27,13 @@ else:
     Lmin = []
     Emin = []
 
-tors2part = (p+1).p_primary_part(2)
-tors3part = (p+1).p_primary_part(3)
+# tors2part = (p+1).p_primary_part(2)
+# tors3part = (p+1).p_primary_part(3)
+tors2part = 2**POWER_OF_2
+tors3part = 3**POWER_OF_3
 tors23part = tors2part * tors3part
 if use_cfactor == 1:
-    torsCpart = (p+1).p_primary_part(Cfactor) if use_twist == 0 else Cfactor
+    torsCpart = Cfactor**POWER_OF_C if use_twist == 0 else Cfactor
     tors3Cpart = tors3part * torsCpart
     tors2Cpart = tors2part * torsCpart
     tors23Cpart = tors23part * torsCpart
@@ -46,7 +54,7 @@ from cformat import Ibz, Object, ObjectFormatter
 
 if use_twist == 1:
     objs = ObjectFormatter([
-        Object('uint64_t', 'TORSION_PLUS_EVEN_POWER', int(f)),
+        Object('uint64_t', 'TORSION_PLUS_EVEN_POWER', int(POWER_OF_2)),
         Object('uint64_t[]', 'TORSION_ODD_PRIMES', Lpls + Lmin[:-1]),
         Object('uint64_t[]', 'TORSION_ODD_POWERS', Epls + Emin[:-1]),
         Object('uint64_t[]', 'TORSION_PLUS_ODD_PRIMES', Lpls),      # TODO deduplicate?
@@ -73,7 +81,7 @@ if use_twist == 1:
     ])
 elif use_cfactor == 1:
     objs = ObjectFormatter([
-        Object('uint64_t', 'TORSION_PLUS_EVEN_POWER', int(f)),
+        Object('uint64_t', 'TORSION_PLUS_EVEN_POWER', int(POWER_OF_2)),
         Object('uint64_t[]', 'TORSION_ODD_PRIMES', Lpls + Lmin),
         Object('uint64_t[]', 'TORSION_ODD_POWERS', Epls + Emin),
         Object('uint64_t[]', 'TORSION_PLUS_ODD_PRIMES', Lpls),      # TODO deduplicate?
@@ -100,7 +108,7 @@ elif use_cfactor == 1:
     ])
 else : 
     objs = ObjectFormatter([
-        Object('uint64_t', 'TORSION_PLUS_EVEN_POWER', int(f)),
+        Object('uint64_t', 'TORSION_PLUS_EVEN_POWER', int(POWER_OF_2)),
         Object('uint64_t[]', 'TORSION_ODD_PRIMES', Lpls + Lmin),
         Object('uint64_t[]', 'TORSION_ODD_POWERS', Epls + Emin),
         Object('uint64_t[]', 'TORSION_PLUS_ODD_PRIMES', Lpls),      # TODO deduplicate?

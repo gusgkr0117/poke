@@ -198,8 +198,8 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
     copy_point(&E0_three.Q, &BASIS_THREE.Q);
     copy_point(&E0_three.PmQ, &BASIS_THREE.PmQ);
     
-    endomorphism_application_three_basis(&E0_three, &curve, &tau, TORSION_PLUS_ODD_POWERS[0]);
-    endomorphism_application_even_basis(&E0_two, &curve, &tau, TORSION_PLUS_EVEN_POWER);
+    endomorphism_application_three_basis(&E0_three, &curve, &tau, POWER_OF_3);
+    endomorphism_application_even_basis(&E0_two, &curve, &tau, POWER_OF_2);
     quat_alg_elem_finalize(&tau);
 
     ec_point_t kernel_point;
@@ -236,7 +236,7 @@ int keygen(inke_sk_t *sk, inke_pk_t *pk) {
         return 1;
     }
     
-    isog.degree[0] = TORSION_PLUS_ODD_POWERS[0];
+    isog.degree[0] = POWER_OF_3;
     for(int i = 1; i < P_LEN + M_LEN; i++) {
         isog.degree[i] = 0;
     }
@@ -402,7 +402,7 @@ int encrypt(inke_ct_t *ct, const inke_pk_t *pk, const unsigned char *m, const si
 
     // Compute the isogeny EA -> EAB
     isogB_prime.curve = pk->EA;
-    isogB_prime.degree[0] = TORSION_PLUS_ODD_POWERS[0];
+    isogB_prime.degree[0] = POWER_OF_3;
     for(int i = 1; i < P_LEN + M_LEN; i++) {
         isogB_prime.degree[i] = 0;
     }
@@ -460,7 +460,7 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
     theta_chain_t hd_isog;
     theta_couple_curve_t EBAB;
     theta_couple_point_t T1, T2, T1m2;
-    ec_basis_t eval_points;
+    ec_basis_t eval_points, PQ2_AB;
     ibz_t alpha_inv, beta_inv, deg;
     ec_point_t pointT;
 
@@ -473,6 +473,9 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
     ibz_copy_digits(&beta_inv, sk->beta, NWORDS_ORDER);
     ibz_invmod(&alpha_inv, &alpha_inv, &TORSION_PLUS_2POWER);
     ibz_invmod(&beta_inv, &beta_inv, &TORSION_PLUS_2POWER);
+    copy_point(&PQ2_AB.P, &ct->PQ2_AB.P);
+    copy_point(&PQ2_AB.Q, &ct->PQ2_AB.Q);
+    copy_point(&PQ2_AB.PmQ, &ct->PQ2_AB.PmQ);
 
     EBAB.E1 = ct->EB;
     EBAB.E2 = ct->EAB;
@@ -484,8 +487,8 @@ int decrypt(unsigned char *m, size_t *m_len, const inke_ct_t *ct, const inke_sk_
     ibz_to_digits(T2_scalar, &beta_inv);
     xMUL(&T1.P2, &ct->PQ2_AB.P, T1_scalar, &EBAB.E2);
     xMUL(&T2.P2, &ct->PQ2_AB.Q, T2_scalar, &EBAB.E2);
-    xADD(&ct->PQ2_AB.PmQ, &ct->PQ2_AB.P, &ct->PQ2_AB.Q, &ct->PQ2_AB.PmQ);
-    ec_biscalar_mul_bounded(&T1m2.P2, &EBAB.E2, T1_scalar, T2_scalar, &ct->PQ2_AB, TORSION_2POWER_BYTES * 8);
+    xADD(&PQ2_AB.PmQ, &PQ2_AB.P, &PQ2_AB.Q, &PQ2_AB.PmQ);
+    ec_biscalar_mul_bounded(&T1m2.P2, &EBAB.E2, T1_scalar, T2_scalar, &PQ2_AB, TORSION_2POWER_BYTES * 8);
 
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
 

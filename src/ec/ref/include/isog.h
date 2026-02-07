@@ -18,6 +18,10 @@ typedef struct
 extern ec_point_t K[83]; // Finite subsets of the kernel
 
 void kps_t(uint64_t const i, ec_point_t const P, ec_point_t const A); // tvelu formulae
+void kps_3(const ec_point_t P, ec_point_t *K);
+
+void xisog_3(ec_point_t* B, const ec_point_t K);
+void xeval_3(ec_point_t* R, const ec_point_t Q, const ec_point_t K);
 
 void xisog_2(ec_kps2_t *kps, ec_point_t *B, const ec_point_t P); // degree-2 isogeny construction
 void xisog_2_singular(ec_kps2_t *kps, ec_point_t *B24, ec_point_t A24);

@@ -211,7 +211,6 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
         printf("Failed to represent integer in non-diagonal form\n");
         return 1;
     }
-
     ec_basis_t E0_two, E0_three, E0_five;
     copy_point(&E0_two.P, &BASIS_EVEN.P);
     copy_point(&E0_two.Q, &BASIS_EVEN.Q);
@@ -220,8 +219,8 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     copy_point(&E0_three.Q, &BASIS_THREE.Q);
     copy_point(&E0_three.PmQ, &BASIS_THREE.PmQ);
 
-    endomorphism_application_three_basis(&E0_three, &curve, &tau, TORSION_PLUS_ODD_POWERS[0]);
-    endomorphism_application_even_basis(&E0_two, &curve, &tau, TORSION_PLUS_EVEN_POWER);
+    endomorphism_application_three_basis(&E0_three, &curve, &tau, POWER_OF_3);
+    endomorphism_application_even_basis(&E0_two, &curve, &tau, POWER_OF_2);
     quat_alg_elem_finalize(&tau);
 
     ec_point_t kernel_point;
@@ -258,7 +257,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
         return 1;
     }
     
-    isog.degree[0] = TORSION_PLUS_ODD_POWERS[0];
+    isog.degree[0] = POWER_OF_3;
     for(int i = 1; i < P_LEN + M_LEN; i++) {
         isog.degree[i] = 0;
     }
@@ -292,7 +291,7 @@ int keygen(poke_sk_t *sk, poke_pk_t *pk) {
     T2.P2 = E0_two.Q;
     T1m2.P2 = E0_two.PmQ;
 
-    theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &E01, &T1, &T2, &T1m2, strategies[2], 1);
+    theta_chain_comput_strategy(&hd_isog, POWER_OF_2 - 2, &E01, &T1, &T2, &T1m2, strategies[2], 1);
 
     // Point evaluation via 2-dim isogeny
     jac_point_t P, Q, R, S, X, Y, T;
@@ -463,7 +462,7 @@ int encrypt(poke_ct_t *ct, const poke_pk_t *pk, const unsigned char *m, const si
 
     // Compute the isogeny EA -> EAB
     isogB_prime.curve = pk->EA;
-    isogB_prime.degree[0] = TORSION_PLUS_ODD_POWERS[0];
+    isogB_prime.degree[0] = POWER_OF_3;
     for(int i = 1; i < P_LEN + M_LEN; i++) {
         isogB_prime.degree[i] = 0;
     }
@@ -562,7 +561,7 @@ int decrypt(unsigned char *m, size_t *m_len, const poke_ct_t *ct, const poke_sk_
     xADD(&PQ2_AB.PmQ, &PQ2_AB.P, &PQ2_AB.Q, &PQ2_AB.PmQ);
     ec_biscalar_mul_bounded(&T1m2.P2, &EBAB.E2, T1_scalar, T2_scalar, &PQ2_AB, TORSION_2POWER_BYTES * 8);
 
-    theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
+    theta_chain_comput_strategy(&hd_isog, POWER_OF_2 - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
 
     eval_points.P = ct->PQxy_B.P;
     eval_points.Q = ct->PQxy_B.Q;

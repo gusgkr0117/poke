@@ -7,10 +7,16 @@ if not require_version(10, 0, print_message=True):
 
 ################################################################
 
-from parameters import p, B, Cfactor, use_cfactor, use_twist, f, Tpls, Tmin, Dcom, Dchall, exp3, expC
+from parameters import lvl, p, B, Cfactor, use_cfactor, use_twist, f, Tpls, Tmin, Dcom, Dchall, exp3, expC
 T = Tpls # * Tmin
 
 ################################################################
+
+exp_params = {1 : [128, 162, 18], 3 : [192, 243, 27], 5 : [256, 324, 36]}
+POWER_OF_2 = exp_params[lvl][0]
+POWER_OF_3 = exp_params[lvl][1]
+if use_cfactor: POWER_OF_C = exp_params[lvl][2]
+else: POWER_OF_C = 1
 
 if p % 4 != 3:
     raise NotImplementedError('requires p ≡ 3 (mod 4)')
@@ -224,9 +230,9 @@ if use_twist == 1:
             break
 
     bases = {
-            'EVEN': 1<<f,
-            'THREE': 3**exp3,
-            #'C': Cfactor**expC,
+            'EVEN': 1<<POWER_OF_2,
+            'THREE': 3**POWER_OF_3,
+            #'C': Cfactor**POWER_OF_C,
             'ODD_PLUS': Tpls,
             #'ODD_MINUS': Tmin,
             #'COMMITMENT_PLUS': gcd(Tpls, Dcom),
@@ -255,9 +261,9 @@ if use_twist == 1:
         ])
 elif use_cfactor == 1 :
     bases = {
-            'EVEN': 1<<f,
-            'THREE': 3**exp3,
-            'C': Cfactor**expC,
+            'EVEN': 1<<POWER_OF_2,
+            'THREE': 3**POWER_OF_3,
+            'C': Cfactor**POWER_OF_C,
             'ODD_PLUS': Tpls,
             'ODD_MINUS': Tmin,
             'COMMITMENT_PLUS': gcd(Tpls, Dcom),
@@ -283,8 +289,8 @@ elif use_cfactor == 1 :
         ])
 else :
     bases = {
-            'EVEN': 1<<f,
-            'THREE': 3**exp3,
+            'EVEN': 1<<POWER_OF_2,
+            'THREE': 3**POWER_OF_3,
             'ODD_PLUS': Tpls,
             'ODD_MINUS': Tmin,
             'COMMITMENT_PLUS': gcd(Tpls, Dcom),

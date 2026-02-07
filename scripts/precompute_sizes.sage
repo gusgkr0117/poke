@@ -7,13 +7,21 @@ if not require_version(9, 8, print_message=True):
 
 ################################################################
 
-from parameters import lvl, f, p
+from parameters import lvl, f, p, use_cfactor
 
 ################################################################
 
+exp_params = {1 : [128, 162, 18], 3 : [192, 243, 27], 5 : [256, 324, 36]}
+POWER_OF_2 = exp_params[lvl][0]
+POWER_OF_3 = exp_params[lvl][1]
+if use_cfactor: POWER_OF_C = exp_params[lvl][2]
+else: POWER_OF_C = 1
+
 logp = ceil(log(p, 2))
-tors2part = (p+1).p_primary_part(2)
-tors3part = (p+1).p_primary_part(3)
+# tors2part = (p+1).p_primary_part(2)
+# tors3part = (p+1).p_primary_part(3)
+tors2part = 2**POWER_OF_2
+tors3part = 3**POWER_OF_3
 
 #XXX first load the constants from klpt_constants.h
 import re

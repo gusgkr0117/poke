@@ -7,4 +7,5 @@ target_include_directories(poke-kem-test_${SVARIANT_LOWER} PRIVATE ${INC_POKE} $
 target_link_libraries(poke-kem-test_${SVARIANT_LOWER} ${LIB_POKE_${SVARIANT_UPPER}} ${LIB_ID2ISO_${SVARIANT_UPPER}} ${LIB_HD_${SVARIANT_UPPER}} ${LIB_INTBIG} ${GMP} poke_common_sys)
 
 add_test(poke-test_${SVARIANT_LOWER} poke-test_${SVARIANT_LOWER} 100)
+add_test(poke-test-hard_${SVARIANT_LOWER} poke-test_${SVARIANT_LOWER} 1000)
 add_test(poke-kem-test_${SVARIANT_LOWER} poke-kem-test_${SVARIANT_LOWER} 100)

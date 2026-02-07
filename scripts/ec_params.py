@@ -66,13 +66,16 @@ def config():
 
     # Read file parameters
     f = open('poke_parameters.txt')
-    f.readline()
+    lvl_input_line = f.readline()
     p_input_line = f.readline()
     B_input_line = f.readline()
+    Cfactor_input_line = f.readline()
     f.close()
     try:
         p = int(p_input_line.split('0x')[-1],16)
         B = int(B_input_line.split(' = ')[-1])
+        Cfactor = int(Cfactor_input_line.split(' = ')[-1])
+        lvl = int(lvl_input_line.split(' = ')[-1])
         assert(B_input_line[:4+len(str(B))] == 'B = '+str(B) and p_input_line[:4+len(hex(p))] == 'p = '+hex(p))
     except:
         print("Error reading poke_parameters.txt. Ensure file contests have the following form:\nlvl = x\np = 0x[hexstring]\nB = [decimalstring]")
@@ -83,15 +86,21 @@ def config():
     if not factorization[0][0]==2 and factorization[1][0]==3:
         print("Error: prime does not have the form p = f*2^a*3^b-1")
         exit(-1)
-    POWER_OF_2 = factorization[0][1]
-    POWER_OF_3 = factorization[1][1]
-    POWER_OF_5 = factorization[2][1]
+    
+    exp_params = {1 : [128, 162, 18], 3 : [192, 243, 27], 5 : [256, 324, 36]}
+    POWER_OF_2 = exp_params[lvl][0]
+    POWER_OF_3 = exp_params[lvl][1]
+    if Cfactor != 1: POWER_OF_5 = exp_params[lvl][2]
+    else: POWER_OF_5 = 1
+    # POWER_OF_2 = factorization[0][1]
+    # POWER_OF_3 = factorization[1][1]
+    # POWER_OF_5 = factorization[2][1]
     Pfactors = [factor[0] for factor in factorization[1:] if factor[0] <= B]
 
     # factorization = factor(p-1)
     # Mfactors = [factor[0] for factor in factorization[1:] if factor[0] <= B]
     Mfactors = []
-    return p,POWER_OF_2,POWER_OF_3,POWER_OF_5,Pfactors,Mfactors
+    return lvl,p,POWER_OF_2,POWER_OF_3,POWER_OF_5,Pfactors,Mfactors
 
 
 sys.setrecursionlimit(1500)
@@ -188,10 +197,39 @@ def optimised_strategy(n, M, S, I):
 
     return l
 
-
+# optimal strategy for 3^b-isogeny
+def strategy3(nstep):
+    eval_cost = 27420
+    tpl_cost = 53200
+    costs = [-1 for _ in range(nstep + 1)]
+    strategy_tree = [0 for _ in range(nstep + 1)]
+    costs[0] = 0
+    costs[1] = 0
+    costs[2] = eval_cost + tpl_cost
+    strategy_tree[2] = [1, 1]
+    def compute_costs(n):
+        if costs[n] != -1:
+            return costs[n]
+        min = -1
+        for i in range(1, n):
+            c_cost = tpl_cost * i + compute_costs(n-i) + eval_cost * (n-i) + compute_costs(i)
+            if min == -1 or min > c_cost:
+                min = c_cost
+                strategy_tree[n] = [i, n-i]
+        costs[n] = min
+        return costs[n]
+    strategy_arr = []
+    def get_strategy3(n):
+        if n == 1: return
+        strategy_arr.append(strategy_tree[n][0])
+        get_strategy3(n-strategy_tree[n][0])
+        get_strategy3(n-strategy_tree[n][1])
+    compute_costs(nstep)
+    get_strategy3(nstep)
+    return strategy_arr
 
 if __name__ == '__main__':
-    p,POWER_OF_2,POWER_OF_3,POWER_OF_5,Pfactors,Mfactors = config()
+    lvl,p,POWER_OF_2,POWER_OF_3,POWER_OF_5,Pfactors,Mfactors = config()
     PMfactors = Pfactors + Mfactors
 
     if p2==0 and q4==0:
@@ -218,6 +256,10 @@ if __name__ == '__main__':
     while FIVEpE * 5 < 2**64:
         FIVEpE *= 5
         FIVEe += 1
+    # lvls = [128, 192, 256]
+    # ISOG_LEN2 = lvls[lvl] - 2
+    # ISOG_LEN3 = ceil(lvls[lvl]*2 * log(2,3))
+    # ISOG_LEN5 = ceil(lvls[lvl]/3 * log(2,5))
 
     f = open('include/ec_params.h', 'w')
     print("computing ec_params.h")
@@ -273,6 +315,10 @@ if __name__ == '__main__':
     f.write('// p+1 divided by the powers of 2, 3 and 5\n')
     f.write(f'static digit_t p_cofactor_for_235fgh[{(((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5).bit_length()-1)//64+1}] = {fp2str((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5, (p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5+1)};\n')
     f.write(f'#define P_COFACTOR_FOR_235FGH_BITLENGTH {((p+1)//3**POWER_OF_3//2**POWER_OF_2//5**POWER_OF_5).bit_length()}\n')
+    f.write('\n')
+    f.write('// Strategy for 3-isogenies\n')
+    f.write(f'static int STRATEGY3[{POWER_OF_3 - 1}]=')
+    f.write(f'{list2str(strategy3(POWER_OF_3))};\n')
     f.write('\n')
     f.write('// Strategy for 4-isogenies\n')
     f.write(f'static int STRATEGY4[{number_strategy_dim2_isog}][{POWER_OF_2//2}]='+'{\n')
