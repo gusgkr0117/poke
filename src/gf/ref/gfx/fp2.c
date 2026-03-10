@@ -287,7 +287,6 @@ fp2_sqrt(fp2_t *x)
 
 // exponentiation using square and multiply
 // Warning!! Not constant time!
-// TODO: I think this is just used for testing, so this is OK
 void
 fp2_pow_vartime(fp2_t *out, const fp2_t *x, const digit_t *exp, const int size)
 {

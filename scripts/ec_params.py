@@ -261,6 +261,10 @@ if __name__ == '__main__':
     # ISOG_LEN3 = ceil(lvls[lvl]*2 * log(2,3))
     # ISOG_LEN5 = ceil(lvls[lvl]/3 * log(2,5))
 
+    THREEpF_bitlen = ceil(log(3**POWER_OF_3, 2))
+    FIVEpF_bitlen = ceil(log(5**POWER_OF_5, 2))
+    THREE_FIVE_bitlen = ceil(log(3**POWER_OF_3 * 5**POWER_OF_5, 2))
+
     f = open('include/ec_params.h', 'w')
     print("computing ec_params.h")
     f.write('#ifndef EC_PARAMS_H\n')
@@ -273,6 +277,9 @@ if __name__ == '__main__':
     f.write(f'#define POWER_OF_5 {POWER_OF_5}\n')
     f.write(f'#define THREEe {THREEe}\n')
     f.write(f'#define FIVEe {FIVEe}\n')
+    f.write(f'#define THREEpF_bitlen {THREEpF_bitlen}\n')
+    f.write(f'#define FIVEpF_bitlen {FIVEpF_bitlen}\n')
+    f.write(f'#define THREE_FIVE_bitlen {THREE_FIVE_bitlen}\n')
     f.write('\n')
     f.write(f'static digit_t TWOpF[NWORDS_ORDER] = {fp2str(2**POWER_OF_2, p)}; // Fp representation for the power of 2\n')
     f.write(f'static digit_t TWOpFm1[NWORDS_ORDER] = {fp2str(2**(POWER_OF_2-1), p)}; // Fp representation for half the power of 2\n')
@@ -280,6 +287,7 @@ if __name__ == '__main__':
     f.write(f'static digit_t THREEpF[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3), p)}; // Fp representation for the power of 3\n')
     f.write(f'static digit_t FIVEpE[NWORDS_ORDER] = {fp2str(FIVEpE, p)}; // FIVEpE = 5^FIVEe < 2^64\n')
     f.write(f'static digit_t FIVEpF[NWORDS_ORDER] = {fp2str(5**(POWER_OF_5), p)}; // Fp representation for the power of 5\n')
+    f.write(f'static digit_t THREE_FIVE_pF[NWORDS_ORDER] = {fp2str(5**(POWER_OF_5) * 3**(POWER_OF_3), p)}; // Fp representation for 3^e*5^f\n')
     f.write(f'static digit_t THREEpFdiv2[NWORDS_ORDER] = {fp2str(3**(POWER_OF_3)//2, p)}; // Floor of half the power of 3\n')
     f.write(f'static digit_t FIVEpFdiv2[NWORDS_ORDER] = {fp2str(5**(POWER_OF_5)//2, p)}; // Floor of half the power of 5\n')
     f.write('\n')

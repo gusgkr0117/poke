@@ -1,5 +1,6 @@
 // TODO this should be its own module
 #include "mp.h"
+#include "fp_constants.h"
 #include <assert.h>
 
 // The below functions were taken from the GF module
@@ -40,6 +41,35 @@ MUL(digit_t *out, const digit_t a, const digit_t b)
     carry = temp & mask_high;
     out[1] ^= (ahbh & mask_high) + carry; // out11
 }
+
+void mp_mul3(digit_t *c, const digit_t *a, const unsigned int nwords) {
+    digit_t t[NWORDS_ORDER] = {0};
+    memcpy(t, a, nwords * RADIX / 8);
+    mp_shiftl(t, 1, nwords);
+    mp_add(c, t, a, nwords);
+}
+
+void mp_mul_pow3(digit_t *c, const int e, const digit_t *a, const unsigned int nwords) {
+    memcpy(c, a, nwords * RADIX / 8);
+    for (int i = 0; i < e; i++) {
+        mp_mul3(c, c, nwords);
+    }
+}
+
+void mp_mul5(digit_t *c, const digit_t *a, const unsigned int nwords) {
+    digit_t t[NWORDS_ORDER] = {0};
+    memcpy(t, a, nwords * RADIX / 8);
+    mp_shiftl(t, 2, nwords);
+    mp_add(c, t, a, nwords);
+}
+
+void mp_mul_pow5(digit_t *c, const int e, const digit_t *a, const unsigned int nwords) {
+    memcpy(c, a, nwords * RADIX / 8);
+    for (int i = 0; i < e; i++) {
+        mp_mul5(c, c, nwords);
+    }
+}
+
 
 void
 mp_add(digit_t *c, const digit_t *a, const digit_t *b, const unsigned int nwords)

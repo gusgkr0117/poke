@@ -92,59 +92,33 @@ int eval_dimtwo_isog_with_middle(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalP
     imRS_basis.P = imR;
     imRS_basis.Q = imS;
     imRS_basis.PmQ = imRS;
-    digit_t x[NWORDS_FIELD] = {0}, y[NWORDS_FIELD] = {0};
-    jac_point_t jacR, jacS;
-    jac_point_t evalP, evalQ, evalPmQ, pointT;
-    ibz_t t1,t2,t3,t4;
-    ibz_init(&t1);
-    ibz_init(&t2);
-    ibz_init(&t3);
-    ibz_init(&t4);
 
-    lift_basis(&jacR, &jacS, &RS, &E01->E2);
+    digit_t x1[NWORDS_ORDER] = {0}, x2[NWORDS_ORDER] = {0};
+    digit_t x3[NWORDS_ORDER] = {0}, x4[NWORDS_ORDER] = {0};
+    digit_t x5[NWORDS_ORDER] = {0}, x6[NWORDS_ORDER] = {0};
+    digit_t t[NWORDS_ORDER] = {0};
 
-    ec_dlog_3(x, y, &imRS_basis, &evalPQmid->P, &phi->codomain.E1);
-    ec_point_t test_point;
-    
-    ibz_copy_digits(&t1, x, NWORDS_ORDER);
-    ibz_copy_digits(&t2, y, NWORDS_ORDER);
-
-    DBLMUL_generic(&evalP, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
-
-    ec_dlog_3(x, y, &imRS_basis, &evalPQmid->Q, &phi->codomain.E1);
-    
-    ibz_copy_digits(&t3, x, NWORDS_ORDER);
-    ibz_copy_digits(&t4, y, NWORDS_ORDER);
-
-    DBLMUL_generic(&evalQ, &jacR, x, &jacS, y, &E01->E2, NWORDS_ORDER);
-
-    // Test if (t1 - t3) * imR + (t2 - t4) * imS = imP - imQ
-    // If not, evalQ = -evalQ
-    ibz_sub(&t1, &t1, &t3);
-    ibz_sub(&t2, &t2, &t4);
-    ibz_mod(&t1, &t1, &TORSION_PLUS_3POWER);
-    ibz_mod(&t2, &t2, &TORSION_PLUS_3POWER);
-    memset(x, 0, NWORDS_ORDER * RADIX / 8);
-    memset(y, 0, NWORDS_ORDER * RADIX / 8);
-    ibz_to_digits(x, &t1);
-    ibz_to_digits(y, &t2);
-    ec_biscalar_mul_bounded(&test_point, &phi->codomain.E1, x, y, &imRS_basis, TORSION_3POWER_BYTES * 8);
-    if (!ec_is_equal(&test_point, &evalPQmid->PmQ)) {
-        jac_neg(&evalQ, &evalQ);
+    const int nwords = (TORSION_3POWER_BYTES * 8 + RADIX) / RADIX;
+    ec_dlog_tate_3(&x1, &x2, &x3, &x4, &imRS_basis, evalPQmid, &phi->codomain.E1);
+    ec_biscalar_mul_bounded(&evalPQ->P, &E01->E2, x1, x2, &RS, TORSION_3POWER_BYTES * 8);
+    ec_biscalar_mul_bounded(&evalPQ->Q, &E01->E2, x3, x4, &RS, TORSION_3POWER_BYTES * 8);
+    mp_add(x5, x1, THREEpF, nwords);
+    mp_sub(t, x5, x3, nwords);
+    if (mp_compare(t, THREEpF, nwords) != -1) {
+        mp_sub(x5, t, THREEpF, nwords);
+    } else {
+        memcpy(x5, t, NWORDS_ORDER * RADIX / 8);
     }
 
+    mp_add(x6, x2, THREEpF, nwords);
+    mp_sub(t, x6, x4, nwords);
+    if (mp_compare(t, THREEpF, nwords) != -1) {
+        mp_sub(x6, t, THREEpF, nwords);
+    } else {
+        memcpy(x6, t, NWORDS_ORDER * RADIX / 8);
+    }
+    ec_biscalar_mul_bounded(&evalPQ->PmQ, &E01->E2, x5, x6, &RS, TORSION_3POWER_BYTES * 8);
 
-    jac_neg(&pointT, &evalQ);
-    ADD(&evalPmQ, &evalP, &pointT, &E01->E2);
-    
-    jac_to_xz(&evalPQ->P, &evalP);
-    jac_to_xz(&evalPQ->Q, &evalQ);
-    jac_to_xz(&evalPQ->PmQ, &evalPmQ);
-
-    ibz_finalize(&t1);
-    ibz_finalize(&t2);
-    ibz_finalize(&t3);
-    ibz_finalize(&t4);
     return 1;
 }
 

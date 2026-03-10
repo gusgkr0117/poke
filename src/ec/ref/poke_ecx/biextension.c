@@ -148,7 +148,6 @@ biext_ladder(const digit_t *n,
 }
 
 // compute the monodromy ratio of cubical points [(P+nQ)/P] / [(nQ)/0]
-// (not used)
 void
 ratio(fp2_t *r, ec_point_t const *PnQ, ec_point_t const *nQ, ec_point_t const *P)
 {
@@ -226,22 +225,19 @@ monodromy_i(ec_point_t *r,
     point_ratio(r, &PnQ, &nQ, P);
 }
 
-void
-monodromy(fp2_t *r,
-           const digit_t *n,
-           const int n_bitlen,
-           ec_point_t const *PQ,
-           ec_point_t const *Q,
-           ec_point_t const *P,
-           fp2_t const *ixP,
-           fp2_t const *ixQ,
-           fp2_t const *ixPQ,
-           ec_point_t const *A24)
-{
-    ec_point_t PnQ, nQ;
-    biext_ladder(n, n_bitlen, &PnQ, &nQ, Q, P, PQ, ixQ, ixP, ixPQ, A24);
-    ratio(r, &PnQ, &nQ, P);
-}
+// void
+// monodromy(ec_point_t *r,
+//           uint64_t e,
+//           ec_point_t const *PQ,
+//           ec_point_t const *Q,
+//           ec_point_t const *P,
+//           ec_point_t const *A24)
+// {
+//     fp2_t ixP;
+//     fp2_copy(&ixP, &P->x);
+//     fp2_inv(&ixP);
+//     monodromy_i(r, e, PQ, Q, P, &ixP, A24);
+// }
 
 // This version computes the monodromy with respect to the biextension
 // associated to 2(0_E), so the square of the monodromy above
@@ -259,6 +255,23 @@ monodromy2(fp2_t *r,
     fp2_copy(&ixP, &P->x);
     fp2_inv(&ixP);
     biext_ladder_2e(e, &PnQ, &nQ, PQ, Q, &ixP, A24);
+    ratio(r, &PnQ, &nQ, P);
+}
+
+void
+monodromy(fp2_t *r,
+           const digit_t *n,
+           const int n_bitlen,
+           ec_point_t const *PQ,
+           ec_point_t const *Q,
+           ec_point_t const *P,
+           fp2_t const *ixP,
+           fp2_t const *ixQ,
+           fp2_t const *ixPQ,
+           ec_point_t const *A24)
+{
+    ec_point_t PnQ, nQ;
+    biext_ladder(n, n_bitlen, &PnQ, &nQ, Q, P, PQ, ixQ, ixP, ixPQ, A24);
     ratio(r, &PnQ, &nQ, P);
 }
 
@@ -496,6 +509,110 @@ fp2_dlog_2e(digit_t *scal, const fp2_t *f, const fp2_t *g, int e)
     return ok;
 }
 
+// a <- b^5
+void fp2_pow5(fp2_t *a, const fp2_t *b) {
+    fp2_t tmp;
+    fp2_sqr(&tmp, b);
+    fp2_sqr(&tmp, &tmp);
+    fp2_mul(a, &tmp, b);
+}
+
+// recursive dlog function of order 5^e
+bool
+fp2_dlog_5e_rec(digit_t *a, long len, fp2_t *pows_f, fp2_t *pows_g, long stacklen)
+{
+    fp2_t t1, t2;
+    if (len == 0) {
+        // *a = 0;
+        for (int i = 0; i < NWORDS_ORDER; i++) {
+            a[i] = 0;
+        }
+        return true;
+    } else if (len == 1) {
+        if (fp2_is_one(&pows_f[stacklen - 1])) {
+            // a = 0;
+            for (int i = 0; i < NWORDS_ORDER; i++) {
+                a[i] = 0;
+            }
+            for (int i = 0; i < stacklen - 1; ++i) {
+                fp2_pow5(&pows_g[i], &pows_g[i]); // new_g = g^5
+
+            }
+            return true;
+        } else {
+            // search in mod 5
+            fp2_copy(&t1, &pows_g[stacklen - 1]);
+            for(int i = 1; i < 5; i++){
+                fp2_mul(&t2, &pows_f[stacklen - 1], &t1);
+                if (fp2_is_one(&t2)) {
+                    // a = i;
+                    a[0] = i;
+                    for (int j = 1; j < NWORDS_ORDER; j++) {
+                        a[j] = 0;
+                    }
+                    for (int j = 0; j < stacklen - 1; ++j) {
+                        fp2_set_one(&t2);
+                        for (int k = 0; k < i; k++) fp2_mul(&t2, &t2, &pows_g[j]);
+                        fp2_mul(&pows_f[j], &pows_f[j], &t2); // new_f = f*(g^i)
+                        fp2_pow5(&pows_g[j], &pows_g[j]); // new_g = g^5      
+                    }
+                    return true;
+                }
+                // t1 <- t1 * g
+                fp2_mul(&t1, &t1, &pows_g[stacklen - 1]);
+            }
+            return false;
+        }
+    } else {
+        long right = (double)len * 0.5;
+        long left = len - right;
+        pows_f[stacklen] = pows_f[stacklen - 1];
+        pows_g[stacklen] = pows_g[stacklen - 1];
+        for (int i = 0; i < left; i++) {
+            fp2_pow5(&pows_f[stacklen], &pows_f[stacklen]);
+            fp2_pow5(&pows_g[stacklen], &pows_g[stacklen]);
+        }
+        // uint64_t dlp1 = 0, dlp2 = 0;
+        digit_t dlp1[NWORDS_ORDER], dlp2[NWORDS_ORDER];
+        bool ok;
+        ok = fp2_dlog_5e_rec(dlp1, right, pows_f, pows_g, stacklen + 1);
+        if (!ok)
+            return false;
+        ok = fp2_dlog_5e_rec(dlp2, left, pows_f, pows_g, stacklen);
+        if (!ok)
+            return false;
+        // a = dlp1 + 5^right * dlp2
+        mp_mul_pow5(dlp2, right, dlp2, NWORDS_ORDER);
+        mp_add(a, dlp2, dlp1, NWORDS_ORDER);
+
+        return true;
+    }
+}
+
+
+// compute DLP of order 5^e
+bool fp2_dlog_5e(digit_t *scal, const fp2_t *f, const fp2_t *g, int e)
+{
+    long log, len = e;
+    for (log = 0; len > 1; len >>= 1)
+        log++;
+    log += 1;
+
+    fp2_t pows_f[log], pows_g[log];
+    pows_f[0] = *f;
+    pows_g[0] = *g;
+    fp2_inv(&pows_g[0]);
+
+    for (int i = 0; i < NWORDS_ORDER; i++) {
+        scal[i] = 0;
+    }
+
+    bool ok = fp2_dlog_5e_rec(scal, e, pows_f, pows_g, 1);
+    assert(ok);
+
+    return ok;
+}
+
 // a <- b^3
 void fp2_pow3(fp2_t *a, const fp2_t *b) {
     fp2_t tmp;
@@ -600,11 +717,50 @@ bool fp2_dlog_3e(digit_t *scal, const fp2_t *f, const fp2_t *g, int e)
     return ok;
 }
 
-void ec_dlog_tate_3(digit_t *scalarP1,
+// Find x such that f = g^x using Garner's algorithm
+bool fp2_dlog_35(digit_t *scal, const fp2_t *f, const fp2_t *g) {
+    fp2_t f3, g3, f5, g5, t;
+    digit_t a3[NWORDS_ORDER] = {0}, a5[NWORDS_ORDER] = {0};
+    ibz_t a3_ibz, a5_ibz, scal_ibz;
+    
+    fp2_copy(&f3, f);
+    for(int i = 0; i < POWER_OF_5; i++) fp2_pow5(&f3, &f3);
+    fp2_copy(&g5, g);
+    for(int i = 0; i < POWER_OF_3; i++) fp2_pow3(&g5, &g5);
+    fp2_copy(&g3, g);
+    for(int i = 0; i < POWER_OF_5; i++) fp2_pow5(&g3, &g3);
+
+    fp2_dlog_3e(a3, &f3, &g3, POWER_OF_3);
+    fp2_pow_vartime(&t, &g3, a3, (TORSION_3POWER_BYTES * 8 + RADIX) / RADIX);
+    // t <- g^a3
+    fp2_pow_vartime(&t, g, a3, (TORSION_3POWER_BYTES * 8 + RADIX) / RADIX);
+    // f5 <- f * g^{-a3}
+    fp2_inv(&t);
+    fp2_mul(&f5, f, &t);
+
+    fp2_dlog_5e(a5, &f5, &g5, POWER_OF_5);
+    
+
+    ibz_init(&a3_ibz); ibz_init(&a5_ibz);
+    ibz_init(&scal_ibz);
+    ibz_copy_digits(&a3_ibz, a3, NWORDS_ORDER);
+    ibz_copy_digits(&a5_ibz, a5, NWORDS_ORDER);
+
+    ibz_mul(&a5_ibz, &TORSION_PLUS_3POWER, &a5_ibz);
+    ibz_add(&scal_ibz, &a5_ibz, &a3_ibz);
+    ibz_mod(&scal_ibz, &scal_ibz, &TORSION_PLUS_3CPOWER);
+    ibz_to_digits(scal, &scal_ibz);
+    
+    ibz_finalize(&a3_ibz);
+    ibz_finalize(&a5_ibz);
+    ibz_finalize(&scal_ibz);
+}
+
+void ec_dlog_tate_5(digit_t *scalarP1,
                     digit_t *scalarQ1,
                     digit_t *scalarP2,
                     digit_t *scalarQ2,
-                    ec_basis_t *PQ3,
+                    ec_basis_t *PQ5,
                     ec_basis_t *basis,
                     const ec_curve_t *curve)
 {
@@ -622,7 +778,7 @@ void ec_dlog_tate_3(digit_t *scalarP1,
     A24_from_AC(&A24, &AC);
 
     // lifting the two basis points
-    lift_basis(&xyP, &xyQ, PQ3, curve);
+    lift_basis(&xyP, &xyQ, PQ5, curve);
     lift_basis(&xyP1, &xyP2, basis, curve);
 
     // computation of the differences
@@ -640,25 +796,88 @@ void ec_dlog_tate_3(digit_t *scalarP1,
     jac_to_xz(&P2mQ, &temp);
 
     // computation of the reference weil pairing
-    weil_odd(&w0, THREEpF, THREEpF_bitlen, &PQ3->P, &PQ3->Q, &PQ3->PmQ, &A24);
+    weil_odd(&w0, FIVEpF, FIVEpF_bitlen, &PQ5->P, &PQ5->Q, &PQ5->PmQ, &A24);
     // e(P,P1) = w0^scalarQ1
-    weil_odd(&w, THREEpF, THREEpF_bitlen, &PQ3->P, &basis->P, &PmP1, &A24);
-    fp2_dlog_3e(scalarQ1, &w, &w0, POWER_OF_3);
+    weil_odd(&w, FIVEpF, FIVEpF_bitlen, &PQ5->P, &basis->P, &PmP1, &A24);
+    fp2_dlog_5e(scalarQ1, &w, &w0, POWER_OF_5);
     // e(P1,Q) = w0^scalarP1
-    weil_odd(&w, THREEpF, THREEpF_bitlen, &basis->P, &PQ3->Q, &P1mQ, &A24);
-    fp2_dlog_3e(scalarP1, &w, &w0, POWER_OF_3);
+    weil_odd(&w, FIVEpF, FIVEpF_bitlen, &basis->P, &PQ5->Q, &P1mQ, &A24);
+    fp2_dlog_5e(scalarP1, &w, &w0, POWER_OF_5);
     // e(P,P2) = w0^scalarQ2
-    weil_odd(&w, THREEpF, THREEpF_bitlen, &PQ3->P, &basis->Q, &PmP2, &A24);
-    fp2_dlog_3e(scalarQ2, &w, &w0, POWER_OF_3);
+    weil_odd(&w, FIVEpF, FIVEpF_bitlen, &PQ5->P, &basis->Q, &PmP2, &A24);
+    fp2_dlog_5e(scalarQ2, &w, &w0, POWER_OF_5);
     // e(P2,Q) = w0^scalarP2
-    weil_odd(&w, THREEpF, THREEpF_bitlen, &basis->Q, &PQ3->Q, &P2mQ, &A24);
-    fp2_dlog_3e(scalarP2, &w, &w0, POWER_OF_3);
+    weil_odd(&w, FIVEpF, FIVEpF_bitlen, &basis->Q, &PQ5->Q, &P2mQ, &A24);
+    fp2_dlog_5e(scalarP2, &w, &w0, POWER_OF_5);
 
 #ifndef NDEBUG
     ec_point_t test_comput;
-    ec_biscalar_mul(&test_comput, curve, scalarP1, scalarQ1, PQ3);
+    ec_biscalar_mul(&test_comput, curve, scalarP1, scalarQ1, PQ5);
     assert(ec_is_equal(&test_comput, &basis->P));
-    ec_biscalar_mul(&test_comput, curve, scalarP2, scalarQ2, PQ3);
+    ec_biscalar_mul(&test_comput, curve, scalarP2, scalarQ2, PQ5);
+    assert(ec_is_equal(&test_comput, &basis->Q));
+#endif
+}
+
+void ec_dlog_tate_35(digit_t *scalarP1,
+                    digit_t *scalarQ1,
+                    digit_t *scalarP2,
+                    digit_t *scalarQ2,
+                    ec_basis_t *PQ35,
+                    ec_basis_t *basis,
+                    const ec_curve_t *curve)
+{
+
+    fp2_t w0, w;
+    ec_point_t AC, A24;
+    ec_point_t PmP1, P1mQ, PmP2, P2mQ;
+    jac_point_t xyP, xyQ, xyP1, xyP2, temp;
+
+    // we start by computing the different weil pairings
+
+    // precomputing the correct curve data
+    fp2_copy(&AC.x, &curve->A);
+    fp2_copy(&AC.z, &curve->C);
+    A24_from_AC(&A24, &AC);
+
+    // lifting the two basis points
+    lift_basis(&xyP, &xyQ, PQ35, curve);
+    lift_basis(&xyP1, &xyP2, basis, curve);
+
+    // computation of the differences
+    jac_neg(&temp, &xyP1);
+    ADD(&temp, &temp, &xyP, curve);
+    jac_to_xz(&PmP1, &temp);
+    jac_neg(&temp, &xyP2);
+    ADD(&temp, &temp, &xyP, curve);
+    jac_to_xz(&PmP2, &temp);
+    jac_neg(&temp, &xyQ);
+    ADD(&temp, &temp, &xyP1, curve);
+    jac_to_xz(&P1mQ, &temp);
+    jac_neg(&temp, &xyQ);
+    ADD(&temp, &temp, &xyP2, curve);
+    jac_to_xz(&P2mQ, &temp);
+
+    // computation of the reference weil pairing
+    weil_odd(&w0, THREE_FIVE_pF, THREE_FIVE_bitlen, &PQ35->P, &PQ35->Q, &PQ35->PmQ, &A24);
+    // e(P,P1) = w0^scalarQ1
+    weil_odd(&w, THREE_FIVE_pF, THREE_FIVE_bitlen, &PQ35->P, &basis->P, &PmP1, &A24);
+    fp2_dlog_35(scalarQ1, &w, &w0);
+    // e(P1,Q) = w0^scalarP1
+    weil_odd(&w, THREE_FIVE_pF, THREE_FIVE_bitlen, &basis->P, &PQ35->Q, &P1mQ, &A24);
+    fp2_dlog_35(scalarP1, &w, &w0);
+    // e(P,P2) = w0^scalarQ2
+    weil_odd(&w, THREE_FIVE_pF, THREE_FIVE_bitlen, &PQ35->P, &basis->Q, &PmP2, &A24);
+    fp2_dlog_35(scalarQ2, &w, &w0);
+    // e(P2,Q) = w0^scalarP2
+    weil_odd(&w, THREE_FIVE_pF, THREE_FIVE_bitlen, &basis->Q, &PQ35->Q, &P2mQ, &A24);
+    fp2_dlog_35(scalarP2, &w, &w0);
+
+#ifndef NDEBUG
+    ec_point_t test_comput;
+    ec_biscalar_mul(&test_comput, curve, scalarP1, scalarQ1, PQ35);
+    assert(ec_is_equal(&test_comput, &basis->P));
+    ec_biscalar_mul(&test_comput, curve, scalarP2, scalarQ2, PQ35);
     assert(ec_is_equal(&test_comput, &basis->Q));
 #endif
 }
