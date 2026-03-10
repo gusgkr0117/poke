@@ -18,94 +18,94 @@ cd build
 cmake -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release ..
 make precomp
 make
-ctest -V -R "poke-test*"
+ctest -V -R "poke-test*" -E "hard"
 ```
-
 ## Output
 Run in Apple M2 CPU 3.49GHz
 ```
 test 13
     Start 13: poke-test_poke_lvl1
 
-13: Test command: /poke/build/src/poke/ref/poke_lvl1/test/poke-test_poke_lvl1 "100"
-13: Working Directory: /poke/build/src/poke/ref/poke_lvl1/test
+13: Test command: poke/build/src/poke/ref/poke_lvl1/test/poke-test_poke_lvl1 "100"
+13: Working Directory: poke/build/src/poke/ref/poke_lvl1/test
 13: Test timeout computed to be: 1500
 13: test loops : 100
-13:   keygen takes .................................... 134850519.040000 nsec
-13:   encrypt takes .................................... 14405957.120000 nsec
-13:   decrypt takes .................................... 23145118.720000 nsec
-1/6 Test #13: poke-test_poke_lvl1 ..............   Passed   17.63 sec
-test 15
-    Start 15: poke-test_poke_lvl3
+13:   keygen takes .................................... 71929159.680000 nsec
+13:   encrypt takes .................................... 14066419.200000 nsec
+13:   decrypt takes .................................... 23130859.520000 nsec
+1/6 Test #13: poke-test_poke_lvl1 ..............   Passed   11.47 sec
+test 16
+    Start 16: poke-test_poke_lvl3
 
-15: Test command: /poke/build/src/poke/ref/poke_lvl3/test/poke-test_poke_lvl3 "100"
-15: Working Directory: /poke/build/src/poke/ref/poke_lvl3/test
-15: Test timeout computed to be: 1500
-15: test loops : 100
-15:   keygen takes .................................... 488484400.640000 nsec
-15:   encrypt takes .................................... 51317742.080000 nsec
-15:   decrypt takes .................................... 91717053.440000 nsec
-2/6 Test #15: poke-test_poke_lvl3 ..............   Passed   63.40 sec
-test 17
-    Start 17: poke-test_poke_lvl5
-
-17: Test command: /poke/build/src/poke/ref/poke_lvl5/test/poke-test_poke_lvl5 "100"
-17: Working Directory: /poke/build/src/poke/ref/poke_lvl5/test
-17: Test timeout computed to be: 1500
-17: test loops : 100
-17:   keygen takes .................................... 992289254.400000 nsec
-17:   encrypt takes .................................... 103828646.400000 nsec
-17:   decrypt takes .................................... 176275458.560000 nsec
-3/6 Test #17: poke-test_poke_lvl5 ..............   Passed  127.57 sec
+16: Test command: poke/build/src/poke/ref/poke_lvl3/test/poke-test_poke_lvl3 "100"
+16: Working Directory: poke/build/src/poke/ref/poke_lvl3/test
+16: Test timeout computed to be: 1500
+16: test loops : 100
+16:   keygen takes .................................... 245184696.320000 nsec
+16:   encrypt takes .................................... 49611545.600000 nsec
+16:   decrypt takes .................................... 82577244.160000 nsec
+2/6 Test #16: poke-test_poke_lvl3 ..............   Passed   37.98 sec
 test 19
-    Start 19: poke-test_inke_lvl1
+    Start 19: poke-test_poke_lvl5
 
-19: Test command: /poke/build/src/poke/ref/inke_lvl1/test/poke-test_inke_lvl1 "100"
-19: Working Directory: /poke/build/src/poke/ref/inke_lvl1/test
+19: Test command: poke/build/src/poke/ref/poke_lvl5/test/poke-test_poke_lvl5 "100"
+19: Working Directory: poke/build/src/poke/ref/poke_lvl5/test
 19: Test timeout computed to be: 1500
 19: test loops : 100
-19:   keygen takes .................................... 110149841.920000 nsec
-19:   encrypt takes .................................... 14632714.240000 nsec
-19:   decrypt takes .................................... 8628451.840000 nsec
-4/6 Test #19: poke-test_inke_lvl1 ..............   Passed   13.73 sec
-test 21
-    Start 21: poke-test_inke_lvl3
+19:   keygen takes .................................... 522953984.000000 nsec
+19:   encrypt takes .................................... 102804003.840000 nsec
+19:   decrypt takes .................................... 168853844.480000 nsec
+3/6 Test #19: poke-test_poke_lvl5 ..............   Passed   79.70 sec
+test 22
+    Start 22: poke-test_inke_lvl1
 
-21: Test command: /poke/build/src/poke/ref/inke_lvl3/test/poke-test_inke_lvl3 "100"
-21: Working Directory: /poke/build/src/poke/ref/inke_lvl3/test
-21: Test timeout computed to be: 1500
-21: test loops : 100
-21:   keygen takes .................................... 337052848.640000 nsec
-21:   encrypt takes .................................... 45076684.800000 nsec
-21:   decrypt takes .................................... 26370856.960000 nsec
-5/6 Test #21: poke-test_inke_lvl3 ..............   Passed   41.09 sec
-test 23
-    Start 23: poke-test_inke_lvl5
+22: Test command: poke/build/src/poke/ref/inke_lvl1/test/poke-test_inke_lvl1 "100"
+22: Working Directory: poke/build/src/poke/ref/inke_lvl1/test
+22: Test timeout computed to be: 1500
+22: test loops : 100
+22:   keygen takes .................................... 67043822.080000 nsec
+22:   encrypt takes .................................... 13784990.720000 nsec
+22:   decrypt takes .................................... 10592750.080000 nsec
+4/6 Test #22: poke-test_inke_lvl1 ..............   Passed    9.48 sec
+test 25
+    Start 25: poke-test_inke_lvl3
 
-23: Test command: /poke/build/src/poke/ref/inke_lvl5/test/poke-test_inke_lvl5 "100"
-23: Working Directory: /poke/build/src/poke/ref/inke_lvl5/test
-23: Test timeout computed to be: 1500
-23: test loops : 100
-23:   keygen takes .................................... 713062837.760000 nsec
-23:   encrypt takes .................................... 96841850.880000 nsec
-23:   decrypt takes .................................... 55803056.640000 nsec
-6/6 Test #23: poke-test_inke_lvl5 ..............   Passed   86.82 sec
+25: Test command: poke/build/src/poke/ref/inke_lvl3/test/poke-test_inke_lvl3 "100"
+25: Working Directory: poke/build/src/poke/ref/inke_lvl3/test
+25: Test timeout computed to be: 1500
+25: test loops : 100
+25:   keygen takes .................................... 188886853.120000 nsec
+25:   encrypt takes .................................... 43448732.160000 nsec
+25:   decrypt takes .................................... 33142425.600000 nsec
+5/6 Test #25: poke-test_inke_lvl3 ..............   Passed   26.78 sec
+test 28
+    Start 28: poke-test_inke_lvl5
+
+28: Test command: poke/build/src/poke/ref/inke_lvl5/test/poke-test_inke_lvl5 "100"
+28: Working Directory: poke/build/src/poke/ref/inke_lvl5/test
+28: Test timeout computed to be: 1500
+28: test loops : 100
+28:   keygen takes .................................... 410722214.400000 nsec
+28:   encrypt takes .................................... 93010219.520000 nsec
+28:   decrypt takes .................................... 71618705.920000 nsec
+6/6 Test #28: poke-test_inke_lvl5 ..............   Passed   57.77 sec
 
 The following tests passed:
-        poke-test_poke_lvl1
-        poke-test_poke_lvl3
-        poke-test_poke_lvl5
-        poke-test_inke_lvl1
-        poke-test_inke_lvl3
-        poke-test_inke_lvl5
+	poke-test_poke_lvl1
+	poke-test_poke_lvl3
+	poke-test_poke_lvl5
+	poke-test_inke_lvl1
+	poke-test_inke_lvl3
+	poke-test_inke_lvl5
 
 100% tests passed, 0 tests failed out of 6
 
-Total Test time (real) = 350.26 sec
+Total Test time (real) = 223.19 sec
 ```
 
 # Reference
 + [INKE paper](https://eprint.iacr.org/2025/1458)
++ [PIKE paper](https://eprint.iacr.org/2026/473) and [C-implementation](https://github.com/Kaizhan-Lin/PIKE-C-Implementation)
 + [POKÉ paper](https://eprint.iacr.org/2024/624)
 + [SQISign git](https://github.com/SQISign/sqisign2d-west-ac24)
 + [fiat-crypto](https://github.com/mit-plv/fiat-crypto)
