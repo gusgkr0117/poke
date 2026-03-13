@@ -5,9 +5,9 @@
 #include <bench.h>
 
 int test_pike_kem(int bench_loops) {
-    poke_sk_t sk = {0};
-    poke_pk_t pk = {0};
-    poke_ct_t ct = {0};
+    pike_sk_t sk = {0};
+    pike_pk_t pk = {0};
+    pike_ct_t ct = {0};
     unsigned char encap_key[32] = {0};
     unsigned char decap_key[32] = {0};
     size_t m_len = 0;
