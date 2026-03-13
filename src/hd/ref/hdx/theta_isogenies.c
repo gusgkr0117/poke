@@ -1942,6 +1942,9 @@ theta_chain_comput_strategy(theta_chain_t *out,
 
     // final splitting step
     int is_split = splitting_comput(&out->last_step, &out->steps[n - 2].codomain);
+    if (!is_split) {
+        printf("not splitted!\n");
+    }
     assert(is_split);
 
     // computing the curves of the codomain

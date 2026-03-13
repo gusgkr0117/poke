@@ -390,6 +390,23 @@ void weil_odd(fp2_t *r, const digit_t* n, const int n_bitlen, ec_point_t *P, ec_
     fp2_mul(r, &r1, &r2);
 }
 
+// Used in PIKE
+void tate_odd(fp2_t *r, const digit_t* n, const int n_bitlen, ec_point_t *P, ec_point_t *Q, ec_point_t *PQ, ec_point_t *A24)
+{
+    fp2_t ixP, ixQ, ixPQ;
+    to_cubical_odd_i(P, Q, PQ, &ixP, &ixQ, &ixPQ);
+    monodromy(r, n, n_bitlen, PQ, Q, P, &ixP, &ixQ, &ixPQ, A24);
+    fp2_t tmp;
+    fp2_copy(&tmp, r);
+    fp_neg(&tmp.im, &tmp.im);
+    fp2_inv(r);
+    fp2_mul(r, r, &tmp);
+    digit_t exp[NWORDS_ORDER] = {0};
+    ibz_to_digits(n, &TORSION_PLUS_23POWER);
+    fp2_pow_vartime(r, r, n, TORSION_PLUS_23POWER->_mp_size);
+}
+
+
 // Weil pairing, PQ should be P+Q in (X:Z) coordinates
 // We assume the points are normalised correctly
 // Do we need a weil_c version?
@@ -873,13 +890,19 @@ void ec_dlog_tate_35(digit_t *scalarP1,
     weil_odd(&w, THREE_FIVE_pF, THREE_FIVE_bitlen, &basis->Q, &PQ35->Q, &P2mQ, &A24);
     fp2_dlog_35(scalarP2, &w, &w0);
 
-#ifndef NDEBUG
+// #ifndef NDEBUG
     ec_point_t test_comput;
     ec_biscalar_mul(&test_comput, curve, scalarP1, scalarQ1, PQ35);
+    if(ec_is_equal(&test_comput, &basis->P)) {
+        printf("good\n");
+    }
     assert(ec_is_equal(&test_comput, &basis->P));
     ec_biscalar_mul(&test_comput, curve, scalarP2, scalarQ2, PQ35);
+    if(ec_is_equal(&test_comput, &basis->Q)) {
+        printf("good\n");
+    }
     assert(ec_is_equal(&test_comput, &basis->Q));
-#endif
+// #endif
 }
 
 // compute the decomputation of basis on the basis PQ

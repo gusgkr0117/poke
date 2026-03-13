@@ -41,4 +41,6 @@ void ec_dlog_2_weil(digit_t *scalarP1,
                     ec_curve_t *curve,
                     int e);
 
+void tate_odd(fp2_t *r, const digit_t* n, const int n_bitlen, ec_point_t *P, ec_point_t *Q, ec_point_t *PQ, ec_point_t *A24);
+
 #endif

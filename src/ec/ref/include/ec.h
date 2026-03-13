@@ -552,6 +552,12 @@ void ec_eval_three(ec_curve_t *image,
                    ec_point_t *points,
                    unsigned short length);
 
+void ec_eval_five(ec_curve_t *image,
+                   const ec_isog_odd_t *phi,
+                   ec_point_t *points,
+                   unsigned short length);
+
+
 /**
  * @brief Evaluate isogeny of odd degree on list of torsion bases
  *

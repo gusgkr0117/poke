@@ -1669,6 +1669,8 @@ ec_dlog_3_step(digit_t *x,
         }
     }
     value *= 3;
+    if(f!=1)
+    {
     if (is_jac_equal(&Pe3[0], &Re[0])) {
         *x += value;
     } else if (is_jac_equal(&PQep0, &Re[0])) {
@@ -1695,7 +1697,7 @@ ec_dlog_3_step(digit_t *x,
     } else if (is_jac_equal(&Q2ep0, &Re[0])) {
         *y += value;
         *y += value;
-    }
+    }}
 }
 
 void
@@ -1793,6 +1795,13 @@ ec_dlog_3(digit_t *scalarP,
         TPL(&TP, &TP, &curvenorm);
         TPL(&TQ, &TQ, &curvenorm);
         TPL(&TPQ, &TPQ, &curvenorm);
+    }
+
+    if(POWER_OF_3 % THREEe == 1)
+    {
+        copy_jac_point(&PeE3[i / THREEe], &TP);
+        copy_jac_point(&QeE3[i / THREEe], &TQ);
+        copy_jac_point(&PQeE3[i / THREEe], &TPQ);
     }
 
     // Computing torsion-2^f points, multiples of P, Q and P+Q
