@@ -144,7 +144,11 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
     memset(y, 0, NWORDS_ORDER * RADIX / 8);
     ibz_to_digits(x, &t1);
     ibz_to_digits(y, &t2);
-    xDBLMUL(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1);
+    
+    ec_curve_normalize_A24(&phi->codomain.E1);
+    if (is_five) xDBLMUL_bounded(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1, FIVEpF_bitlen);
+    else xDBLMUL_bounded(&test_point, &imRS_basis.P, x, &imRS_basis.Q, y, &imRS_basis.PmQ, &phi->codomain.E1, THREE_FIVE_bitlen);
+
     if (!ec_is_equal(&test_point, &imPQ)) {
         jac_neg(&evalQ, &evalQ);
     }
@@ -201,7 +205,8 @@ int eval_dimtwo_isog_single(theta_chain_t *phi, ibz_t *q, ec_point_t *evalP, ec_
     if (is_five) ec_dlog_5(x, y, &imRS_basis, &imP, &phi->codomain.E1);
     else ec_dlog_3(x, y, &imRS_basis, &imP, &phi->codomain.E1);
 
-    xDBLMUL(evalP, &RS.P, x, &RS.Q, y, &RS.PmQ, &E01->E2);
+    ec_curve_normalize_A24(&E01->E2);
+    xDBLMUL_bounded(evalP, &RS.P, x, &RS.Q, y, &RS.PmQ, &E01->E2, THREEpF_bitlen);
     return 1;
 }
 
@@ -386,7 +391,8 @@ int keygen(pike_sk_t *sk, pike_pk_t *pk) {
     ec_mul(&pk->PQ2.P, &E3, sk->alpha, &eval_points[0]);
     ec_mul(&pk->PQ2.Q, &E3, sk->beta, &eval_points[1]);
     xADD(&pointT, &eval_points[0], &eval_points[1], &eval_points[2]);
-    xDBLMUL(&pk->PQ2.PmQ, &eval_points[0], sk->alpha, &eval_points[1], sk->beta, &pointT, &E3);  
+    ec_curve_normalize_A24(&E3);
+    xDBLMUL_bounded(&pk->PQ2.PmQ, &eval_points[0], sk->alpha, &eval_points[1], sk->beta, &pointT, &E3, POWER_OF_2);  
     ec_mul_ibz(&pk->PQ5.P, &E3, &gamma2, &eval_points[3]);
     ec_mul_ibz(&pk->PQ5.Q, &E3, &gamma2, &eval_points[4]);
     ec_mul_ibz(&pk->PQ5.PmQ, &E3, &gamma2, &eval_points[5]);
@@ -493,7 +499,7 @@ int encrypt(pike_ct_t *ct, const pike_pk_t *pk, const unsigned char *m, const si
     }
     else {
         ibz_random_unit(&beta1, &TORSION_PLUS_3POWER, NULL);
-        ibz_random_unit(&beta1, &TORSION_ODD_MINUS, NULL);
+        ibz_random_unit(&beta2, &TORSION_ODD_MINUS, NULL);
         ibz_random_unit(&omega, &A, NULL);
         ibz_random_unit(&t1, &TORSION_D, NULL);
         ibz_random_unit(&t2, &TORSION_D, NULL);
@@ -519,9 +525,9 @@ int encrypt(pike_ct_t *ct, const pike_pk_t *pk, const unsigned char *m, const si
     isogB1.curve = CURVE_E0;
     isogB1.degree[0] = POWER_OF_3;
     isogB1.degree[1] = 0;
-    xDBLMUL(&isogB1.ker_plus, &BASIS_THREE.P, one_scalar, &BASIS_THREE.Q, beta1_scalar, &BASIS_THREE.PmQ, &CURVE_E0);
-    ec_set_zero(&isogB1.ker_minus);      
-    xDBLMUL(&pointT, &BASIS_FIVE.P, one_scalar, &BASIS_FIVE.Q, beta2_scalar, &BASIS_FIVE.PmQ, &CURVE_E0);
+    ec_biscalar_mul_bounded(&isogB1.ker_plus, &CURVE_E0, one_scalar, beta1_scalar, &BASIS_THREE, TORSION_3POWER_BYTES * 8);
+    ec_set_zero(&isogB1.ker_minus);
+    ec_biscalar_mul_bounded(&pointT, &CURVE_E0, one_scalar, beta2_scalar, &BASIS_FIVE, FIVEpF_bitlen);
     copy_point(&eval_points[0], &BASIS_EVEN.P);
     copy_point(&eval_points[1], &BASIS_EVEN.Q);
     copy_point(&eval_points[2], &BASIS_EVEN.PmQ);
@@ -542,15 +548,17 @@ int encrypt(pike_ct_t *ct, const pike_pk_t *pk, const unsigned char *m, const si
     xMUL(&ct->PQ2_B.Q, &eval_points[1], omega_inv_scalar, &EB);
     // necessary?
     xADD(&pointT, &eval_points[0], &eval_points[1], &eval_points[2]);
-    xDBLMUL(&ct->PQ2_B.PmQ, &eval_points[0], omega_scalar, &eval_points[1], omega_inv_scalar, &pointT, &EB);
+
+    ec_curve_normalize_A24(&EB);
+    xDBLMUL_bounded(&ct->PQ2_B.PmQ, &eval_points[0], omega_scalar, &eval_points[1], omega_inv_scalar, &pointT, &EB, POWER_OF_2);
     xMUL(&ct->QsB, &eval_points[3], t1_scalar, &EB);
 
     isogB1.curve = pk->EA;
     isogB1.degree[0] = POWER_OF_3;
     isogB1.degree[1] = 0;
-    xDBLMUL(&isogB1.ker_plus, &pk->PQ3.P, one_scalar, &pk->PQ3.Q, beta1_scalar, &pk->PQ3.PmQ, &pk->EA);
+    ec_biscalar_mul_bounded(&isogB1.ker_plus, &pk->EA, one_scalar, beta1_scalar, &pk->PQ3, THREEpF_bitlen);
     ec_set_zero(&isogB1.ker_minus);
-    xDBLMUL(&pointT, &pk->PQ5.P, one_scalar, &pk->PQ5.Q, beta2_scalar, &pk->PQ5.PmQ, &pk->EA);
+    ec_biscalar_mul_bounded(&pointT, &pk->EA, one_scalar, beta2_scalar, &pk->PQ5, FIVEpF_bitlen);
     copy_point(&eval_points[0], &pk->PQ2.P);
     copy_point(&eval_points[1], &pk->PQ2.Q);
     copy_point(&eval_points[2], &pk->PQ2.PmQ);
@@ -571,7 +579,10 @@ int encrypt(pike_ct_t *ct, const pike_pk_t *pk, const unsigned char *m, const si
     xMUL(&ct->PQ2_AB.Q, &eval_points[1], omega_inv_scalar, &EAB);
     // necessary?
     xADD(&pointT, &eval_points[0], &eval_points[1], &eval_points[2]);
-    xDBLMUL(&ct->PQ2_AB.PmQ, &eval_points[0], omega_scalar, &eval_points[1], omega_inv_scalar, &pointT, &EAB);
+
+    ec_curve_normalize_A24(&EAB);
+    xDBLMUL_bounded(&ct->PQ2_AB.PmQ, &eval_points[0], omega_scalar, &eval_points[1], omega_inv_scalar, &pointT, &EAB, POWER_OF_2);
+    
     xMUL(&ct->PsAB, &eval_points[3], t2_scalar, &EAB);
 
     unsigned char hash_input[NWORDS_FIELD * RADIX / 8] = {0};
@@ -664,7 +675,8 @@ int decrypt(unsigned char *m, size_t *m_len, const pike_ct_t *ct, const pike_sk_
     xMUL(&T1.P2, &ct->PQ2_AB.P, T1_scalar, &EBAB.E2);
     xMUL(&T2.P2, &ct->PQ2_AB.Q, T2_scalar, &EBAB.E2);
     xADD(&pointT, &ct->PQ2_AB.P, &ct->PQ2_AB.Q, &ct->PQ2_AB.PmQ);
-    xDBLMUL(&T1m2.P2, &ct->PQ2_AB.P, T1_scalar, &ct->PQ2_AB.Q, T2_scalar, &pointT, &EBAB.E2);
+    ec_curve_normalize_A24(&EBAB.E2);
+    xDBLMUL_bounded(&T1m2.P2, &ct->PQ2_AB.P, T1_scalar, &ct->PQ2_AB.Q, T2_scalar, &pointT, &EBAB.E2, POWER_OF_2);
     theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
 
     tmp.P1 = ct->QsB;
