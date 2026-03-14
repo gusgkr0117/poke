@@ -327,74 +327,65 @@ ec_eval_odd(ec_curve_t *image, const ec_isog_odd_t *phi, ec_point_t *points, uns
     image->is_A24_computed_and_normalized = 0;
 }
 
-void
-ec_eval_five_rec(ec_point_t *A24,
-                  unsigned int length_path,
-                  ec_point_t *ker,
-                  ec_point_t *stack,
-                  unsigned short length_stack,
-                  ec_point_t *points,
-                  unsigned short length)
-{
+// void
+// ec_eval_five(ec_curve_t *image,
+//               const ec_isog_odd_t *phi,
+//               ec_point_t *points,
+//               unsigned short length)
+// {
 
-    if (length_path == 0)
-        return;
-    if (length_path == 1) {
-        ec_point_t B24;
-        kps(1, *ker, *A24);
-        xisog(&B24, 1, *A24);
-        for (int j = 0; j < length_stack; j++)
-            xeval(&stack[j], 1, stack[j], *A24);
-        for (int j = 0; j < length; j++)
-            xeval(&points[j], 1, points[j], *A24);
-        copy_point(A24, &B24);
-        return;
-    }
+//     ec_point_t R, A24, B24, A3;
+//     ec_point_t stack[POWER_OF_5];
+//     unsigned int stack_index[POWER_OF_5];
+//     int index = 0, nstack = 0, ii = 0;
+//     digit_t m;
 
-    long right = length_path / 1.5;
-    long left = length_path - right;
+//     copy_point(&R, &phi->ker_minus);
 
-    copy_point(&(stack[length_stack]), ker);
+//     AC_to_A24(&A24, &phi->curve);
+//     fp2_sub(&A3.z, &A24.x, &A24.z);
+//     fp2_copy(&A3.x, &A24.x);
 
-    for (int j = 0; j < left; j++)
-        xMULv2(ker, ker, &(TORSION_ODD_PRIMES[1]), p_plus_minus_bitlength[1], A24);
+//     // Traverse Tree
+//     for (int row = 1; row < phi->degree[1]; row ++) {
+//         while (index < phi->degree[1] - row) {
+//             copy_point(&stack[nstack], &R);
+//             stack_index[nstack++] = index;
+//             m = STRATEGY5[ii++];
+//             for (int j = 0; j < m; j++) {
+//                 xMUL_FIVE(&R, &R, &A3, &A24);
+//             }
+//             index += m;
+//         }
+//         kps(1, R, A24);
+//         xisog(&B24, 1, A24);
+//         copy_point(&A24, &B24);
+//         fp2_sub(&A3.z, &A24.x, &A24.z);
+//         fp2_copy(&A3.x, &A24.x);
 
-    ec_eval_five_rec(A24, right, ker, stack, length_stack + 1, points, length);
+//         for(int i = 0; i < nstack; i++) {
+//             xeval(&stack[i], 1, stack[i], A24);
+//         }
 
-    copy_point(ker, &(stack[length_stack]));
+//         for(int i = 0; i < length; i++) {
+//             xeval(&points[i], 1, points[i], A24);
+//         }
 
-    ec_eval_five_rec(A24, left, ker, stack, length_stack, points, length);
+//         copy_point(&R, &stack[nstack - 1]);
+//         index = stack_index[nstack - 1];
+//         nstack--;
+//     }
+//     kps(1, R, A24);
+//     xisog(&B24, 1, A24);
+//     copy_point(&A24, &B24);
 
-    // ibz_finalize(&pow);
-}
+//     for(int i = 0; i < length; i++) {
+//         xeval(&points[i], 1, points[i], A24);
+//     }
 
-void
-ec_eval_five(ec_curve_t *image,
-              const ec_isog_odd_t *phi,
-              ec_point_t *points,
-              unsigned short length)
-{
-
-    ec_point_t ker, A24;
-    ec_point_t stack[TORSION_PLUS_ODD_POWERS[0]]; // need much smaller stack but okay...
-    int i, j, k;
-
-    AC_to_A24(&A24, &phi->curve);
-
-    copy_point(&ker, &phi->ker_plus);
-    if(ec_is_zero(&ker)){
-        copy_point(&ker, &phi->ker_minus);
-    }
-    ec_eval_five_rec(&A24, phi->degree[1], &ker, stack, 0, points, length);
-
-    A24_to_AC(image, &A24);
-
-    // TODO:
-    // The curve does not have A24 normalised though
-    // should we normalise it here, or do it later?
-    image->is_A24_computed_and_normalized = 0;
-}
-
+//     A24_to_AC(image, &A24);
+//     image->is_A24_computed_and_normalized = 0;
+// }
 
 void
 ec_isomorphism(ec_isom_t *isom, const ec_curve_t *from, const ec_curve_t *to)
