@@ -655,7 +655,7 @@ void endomorphism_application_five_basis(ec_basis_t *bas, ec_curve_t *E, quat_al
 
 // helper function to apply some endomorphism of E0 on a single jacobian point P of an arbitrary order
 // works in place
-void endomorphism_application_single_point(ec_point_t *R, const ec_curve_t *E, const quat_alg_elem_t *theta, const ibz_t *order) {
+void endomorphism_application_single_point(ec_point_t *R, ec_curve_t *E, const quat_alg_elem_t *theta, const ibz_t *order) {
     jac_point_t Rt, Rtt, R_jac;
     fp2_t fp2_i;
     digit_t tmp_digit[NWORDS_ORDER] = {0};

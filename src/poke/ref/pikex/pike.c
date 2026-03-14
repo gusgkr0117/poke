@@ -113,7 +113,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     if (is_five) {
         const int nwords = (THREE_FIVE_bitlen + RADIX) / RADIX;
-        ec_dlog_weil_5(&x1, &x2, &x3, &x4, &imRS_basis, &imPQ_basis, &phi->codomain.E1);
+        ec_dlog_weil_5(x1, x2, x3, x4, &imRS_basis, &imPQ_basis, &phi->codomain.E1);
         ec_biscalar_mul_bounded(&evalPQ->P, &E01->E2, x1, x2, &RS, THREE_FIVE_bitlen);
         ec_biscalar_mul_bounded(&evalPQ->Q, &E01->E2, x3, x4, &RS, THREE_FIVE_bitlen);
         mp_add(x5, x1, FIVEpF, nwords);
@@ -135,7 +135,7 @@ int eval_dimtwo_isog(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalPQ, ec_basis_
 
     } else {
         const int nwords = (THREEpF_bitlen + RADIX) / RADIX;
-        ec_dlog_weil_3(&x1, &x2, &x3, &x4, &imRS_basis, &imPQ_basis, &phi->codomain.E1);
+        ec_dlog_weil_3(x1, x2, x3, x4, &imRS_basis, &imPQ_basis, &phi->codomain.E1);
         ec_biscalar_mul_bounded(&evalPQ->P, &E01->E2, x1, x2, &RS, THREEpF_bitlen);
         ec_biscalar_mul_bounded(&evalPQ->Q, &E01->E2, x3, x4, &RS, THREEpF_bitlen);
         mp_add(x5, x1, THREEpF, nwords);

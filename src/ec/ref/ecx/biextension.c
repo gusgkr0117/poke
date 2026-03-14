@@ -606,7 +606,7 @@ void ec_dlog_weil_3(digit_t *scalarP1,
                     digit_t *scalarQ2,
                     ec_basis_t *PQ3,
                     ec_basis_t *basis,
-                    const ec_curve_t *curve)
+                    ec_curve_t *curve)
 {
 
     fp2_t w0, w;

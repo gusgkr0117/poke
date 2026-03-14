@@ -402,8 +402,8 @@ void tate_odd(fp2_t *r, const digit_t* n, const int n_bitlen, ec_point_t *P, ec_
     fp2_inv(r);
     fp2_mul(r, r, &tmp);
     digit_t exp[NWORDS_ORDER] = {0};
-    ibz_to_digits(n, &TORSION_PLUS_23POWER);
-    fp2_pow_vartime(r, r, n, TORSION_PLUS_23POWER->_mp_size);
+    ibz_to_digits(exp, &TORSION_PLUS_23POWER);
+    fp2_pow_vartime(r, r, exp, TORSION_PLUS_23POWER->_mp_size);
 }
 
 
@@ -771,13 +771,14 @@ bool fp2_dlog_35(digit_t *scal, const fp2_t *f, const fp2_t *g) {
     ibz_finalize(&a3_ibz);
     ibz_finalize(&a5_ibz);
     ibz_finalize(&scal_ibz);
+    return true;
 }
 
 void ec_dlog_weil_3_single(digit_t *scalarP1,
                     digit_t *scalarQ1,
                     ec_basis_t *PQ3,
                     ec_point_t *targetP,
-                    const ec_curve_t *curve)
+                    ec_curve_t *curve)
 {
 
     fp2_t w0, w;
@@ -843,7 +844,7 @@ void ec_dlog_weil_3(digit_t *scalarP1,
                     digit_t *scalarQ2,
                     ec_basis_t *PQ3,
                     ec_basis_t *basis,
-                    const ec_curve_t *curve)
+                    ec_curve_t *curve)
 {
 
     fp2_t w0, w;
@@ -906,7 +907,7 @@ void ec_dlog_weil_5(digit_t *scalarP1,
                     digit_t *scalarQ2,
                     ec_basis_t *PQ5,
                     ec_basis_t *basis,
-                    const ec_curve_t *curve)
+                    ec_curve_t *curve)
 {
 
     fp2_t w0, w;
@@ -969,7 +970,7 @@ void ec_dlog_weil_35(digit_t *scalarP1,
                     digit_t *scalarQ2,
                     ec_basis_t *PQ35,
                     ec_basis_t *basis,
-                    const ec_curve_t *curve)
+                    ec_curve_t *curve)
 {
 
     fp2_t w0, w;
