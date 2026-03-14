@@ -10,6 +10,7 @@ typedef struct fp2_t
     fp_t re, im;
 } fp2_t;
 
+void fp2_conj(fp2_t *x, const fp2_t *y);
 void fp2_set_small(fp2_t *x, const digit_t val);
 void fp2_set_one(fp2_t *x);
 void fp2_set_zero(fp2_t *x);

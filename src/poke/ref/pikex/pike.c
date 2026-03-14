@@ -266,6 +266,7 @@ int keygen(pike_sk_t *sk, pike_pk_t *pk) {
     quat_alg_conj(&tau_conj, &tau);
 
     ec_basis_t E0_two, E0_three, E0_five, E0_three_conj;
+    ec_point_t E0_point_S;
     copy_point(&E0_two.P, &BASIS_EVEN.P);
     copy_point(&E0_two.Q, &BASIS_EVEN.Q);
     copy_point(&E0_two.PmQ, &BASIS_EVEN.PmQ);
@@ -278,12 +279,14 @@ int keygen(pike_sk_t *sk, pike_pk_t *pk) {
     copy_point(&E0_three_conj.P, &BASIS_THREE.P);
     copy_point(&E0_three_conj.Q, &BASIS_THREE.Q);
     copy_point(&E0_three_conj.PmQ, &BASIS_THREE.PmQ);
+    copy_point(&E0_point_S, &BASIS_S.P);
 
     endomorphism_application_three_basis(&E0_three, &curve, &tau, TORSION_PLUS_ODD_POWERS[0]);
     endomorphism_application_three_basis(&E0_three_conj, &curve, &tau_conj, TORSION_PLUS_ODD_POWERS[0]);
     endomorphism_application_five_basis(&E0_five, &curve, &tau, TORSION_MINUS_ODD_POWERS[0]);
     endomorphism_application_even_basis(&E0_two, &curve, &tau, TORSION_PLUS_EVEN_POWER);
-    
+    endomorphism_application_single_point(&E0_point_S, &curve, &tau, &TORSION_D);
+
     ec_point_t K1, K2;
     ec_point_init(&K1);
     ec_point_init(&K2);
@@ -316,8 +319,8 @@ int keygen(pike_sk_t *sk, pike_pk_t *pk) {
     for(int i = 1; i < P_LEN + M_LEN; i++) {
         isog1.degree[i] = 0;
     }
-    ec_point_t eval_points[6];
-    for(int i = 0; i < 6; i++){
+    ec_point_t eval_points[7];
+    for(int i = 0; i < 7; i++){
         ec_point_init(&eval_points[i]);
     }
     copy_point(&eval_points[0], &E0_two.P);
@@ -326,6 +329,8 @@ int keygen(pike_sk_t *sk, pike_pk_t *pk) {
     copy_point(&eval_points[3], &E0_five.P);
     copy_point(&eval_points[4], &E0_five.Q);
     copy_point(&eval_points[5], &E0_five.PmQ);
+
+    copy_point(&eval_points[6], &E0_point_S);
 
 
     ec_point_t eval_points1[5];
@@ -354,7 +359,7 @@ int keygen(pike_sk_t *sk, pike_pk_t *pk) {
     for(int i = 1; i < P_LEN + M_LEN; i++) {
         isog2.degree[i] = 0;
     }
-    ec_eval_three(&E2, &isog2, (ec_point_t *)&eval_points, 6);
+    ec_eval_three(&E2, &isog2, (ec_point_t *)&eval_points, 7);
 
     ibz_mul(&scalar, &TORSION_PLUS_3POWER, &q);
     ibz_mod(&scalar, &scalar, &TORSION_PLUS_2POWER);
@@ -384,7 +389,7 @@ int keygen(pike_sk_t *sk, pike_pk_t *pk) {
     for(int i = 1; i < P_LEN + M_LEN; i++) {
         isog3.degree[i] = 0;
     }
-    ec_eval_three(&E3, &isog3, (ec_point_t *)&eval_points, 6);
+    ec_eval_three(&E3, &isog3, (ec_point_t *)&eval_points, 7);
     
     pk->EA = E3;
     ec_mul(&pk->PQ2.P, &E3, sk->alpha, &eval_points[0]);
@@ -416,34 +421,8 @@ int keygen(pike_sk_t *sk, pike_pk_t *pk) {
     ec_mul_ibz(&pk->PQ3.Q, &E3, &gamma1, &pk->PQ3.Q);
     ec_mul_ibz(&pk->PQ3.PmQ, &E3, &gamma1, &pk->PQ3.PmQ);
 
-    theta_couple_point_t output_points[3], output_points1[3], output_points2[3], input_points[3], input_points1[3], input_points2[3], tmpS;
-    input_points1[0].P1 = BASIS_EVEN.P;
-    input_points1[1].P1 = BASIS_EVEN.Q;
-    input_points1[2].P1 = BASIS_EVEN.PmQ;
-    for(int i = 0; i < 3; i++){
-        ec_set_zero(&input_points1[i].P2);
-        theta_chain_eval_special_case(&output_points1[i], &hd_isog, &input_points1[i], &E01);
-    }
-
-    tmpS.P1 = BASIS_S.P;
-    ec_set_zero(&tmpS.P2);
-    theta_chain_eval_special_case(&tmpS, &hd_isog, &tmpS, &E01);
-
-
-    for(int i = 0; i < 3; i++){
-        output_points[i].P1 = output_points1[i].P1;
-        output_points[i].P2 = output_points1[i].P2;
-    }
-    E01.E1 = hd_isog.codomain.E1;
-    E01.E2 = hd_isog.codomain.E2;
-    theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &E01, &output_points[0], &output_points[1], &output_points[2], strategies[2], 1);
-    ec_set_zero(&tmpS.P2);
-    theta_chain_eval_special_case(&tmpS, &hd_isog, &tmpS, &E01);
-    copy_point(&pk->imPs, &tmpS.P1);
-    ec_mul(&pk->imPs, &hd_isog.codomain.E1, sk->iota, &pk->imPs);
-    ec_isom_t iso;
-    ec_isomorphism(&iso, &hd_isog.codomain.E1, &pk->EA);
-    ec_iso_eval(&pk->imPs, &iso);
+    // Evaluating a D-torsion single point X
+    ec_mul(&pk->imPs, &pk->EA, sk->iota, &eval_points[6]);
     
     ibz_finalize(&scalar);
     ibz_finalize(&remainder);
@@ -651,17 +630,21 @@ int decrypt(unsigned char *m, size_t *m_len, const pike_ct_t *ct, const pike_sk_
     ibz_invmod(&beta_inv, &beta_inv, &TORSION_PLUS_2POWER);
 
     ibz_sub(&d, &A, &deg);
-    ibz_mul(&d, &deg, &d);
+    ibz_mul(&d, &deg, &d); // d = q(2^a-q)
     ibz_mod(&d, &d, &TORSION_D);
     ibz_copy_digits(&iota, sk->iota, NWORDS_ORDER);
-    ibz_mul(&d, &iota, &d);
+    ibz_mul(&d, &iota, &d); // d = q(2^a-q) * iota
     ibz_mod(&d, &d, &TORSION_D);
-    ibz_mul(&d, &d, &TORSION_ODD_PLUS);
+    ibz_mul(&d, &d, &TORSION_ODD_PLUS); // d = q(2^a-q) * iota * C1
     ibz_mod(&d, &d, &TORSION_D);
-    ibz_mul(&d, &d, &TORSION_ODD_MINUS);
+    ibz_mul(&d, &d, &TORSION_ODD_PLUS); // d = q(2^a-q) * iota * C1^2
+    ibz_mod(&d, &d, &TORSION_D);
+    ibz_mul(&d, &d, &TORSION_ODD_PLUS); // d = q(2^a-q) * iota * C1^3
+    ibz_mod(&d, &d, &TORSION_D);
+    ibz_mul(&d, &d, &TORSION_ODD_MINUS);  // d = q(2^a-q) * iota * C1^3 * C2
     ibz_mod(&d, &d, &TORSION_D);
     ibz_invmod(&d, &d, &TORSION_D);
-    ibz_mod(&d, &d, &TORSION_D);
+    // ibz_mod(&d, &d, &TORSION_D);
 
     EBAB.E1 = ct->EB;
     EBAB.E2 = ct->EAB;

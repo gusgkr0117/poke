@@ -653,6 +653,69 @@ void endomorphism_application_five_basis(ec_basis_t *bas, ec_curve_t *E, quat_al
     ibz_finalize(&content);
 }
 
+// helper function to apply some endomorphism of E0 on a single jacobian point P of an arbitrary order
+// works in place
+void endomorphism_application_single_point(ec_point_t *R, const ec_curve_t *E, const quat_alg_elem_t *theta, const ibz_t *order) {
+    jac_point_t Rt, Rtt, R_jac;
+    fp2_t fp2_i;
+    digit_t tmp_digit[NWORDS_ORDER] = {0};
+    ibz_t a, b, c, d, t;
+    ec_point_t tmp;
+
+    fp2_set_zero(&fp2_i);
+    fp_set_one(&fp2_i.im);
+    lift_point(&R_jac, R, E);
+    // jac_init(&Rt);
+    ibz_init(&a); ibz_init(&b); ibz_init(&c); ibz_init(&d); ibz_init(&t);
+    ibz_invmod(&t, &theta->denom, order);
+    ibz_mul(&a, &theta->coord[0], &t); ibz_mod(&a, &a, order);
+    ibz_mul(&b, &theta->coord[1], &t); ibz_mod(&b, &b, order);
+    ibz_mul(&c, &theta->coord[2], &t); ibz_mod(&c, &c, order);
+    ibz_mul(&d, &theta->coord[3], &t); ibz_mod(&d, &d, order);
+
+    // quat_alg_elem_print(theta);
+
+    ibz_to_digits(tmp_digit, &a);
+    MUL_generic(&Rt, &R_jac, tmp_digit, (*order)->_mp_size, E);
+
+    // (x, y) -> (-x, yi)
+    memset(tmp_digit, 0, NWORDS_ORDER * RADIX / 8);
+    copy_jac_point(&Rtt, &R_jac);
+    ibz_to_digits(tmp_digit, &b);
+    fp2_neg(&Rtt.x, &Rtt.x);
+    fp2_mul(&Rtt.y, &Rtt.y, &fp2_i);
+    MUL_generic(&Rtt, &Rtt, tmp_digit, (*order)->_mp_size, E);
+    ADD(&Rt, &Rt, &Rtt, E);
+
+    // (x, y) -> (x^p, y^p)
+    memset(tmp_digit, 0, NWORDS_ORDER * RADIX / 8);
+    copy_jac_point(&Rtt, &R_jac);
+    ibz_to_digits(tmp_digit, &c);
+    fp2_conj(&Rtt.x, &Rtt.x);
+    fp2_conj(&Rtt.y, &Rtt.y);
+    MUL_generic(&Rtt, &Rtt, tmp_digit, (*order)->_mp_size, E);
+    ADD(&Rt, &Rt, &Rtt, E);
+
+    // (x, y) -> (-x^p, y^p * i)
+    memset(tmp_digit, 0, NWORDS_ORDER * RADIX / 8);
+    copy_jac_point(&Rtt, &R_jac);
+    ibz_to_digits(tmp_digit, &d);
+    fp2_conj(&Rtt.x, &Rtt.x);
+    fp2_neg(&Rtt.x, &Rtt.x);
+    fp2_conj(&Rtt.y, &Rtt.y);
+    fp2_mul(&Rtt.y, &Rtt.y, &fp2_i);
+    MUL_generic(&Rtt, &Rtt, tmp_digit, (*order)->_mp_size, E);
+    ADD(&Rt, &Rt, &Rtt, E);
+
+    jac_to_xz(R, &Rt);
+
+    ibz_finalize(&a);
+    ibz_finalize(&b);
+    ibz_finalize(&c);
+    ibz_finalize(&d);
+    ibz_finalize(&t);
+}
+
 void
 id2iso_ideal_to_kernel_dlogs_odd(ibz_vec_2_t *vec,
                                  ec_degree_odd_t *deg,
