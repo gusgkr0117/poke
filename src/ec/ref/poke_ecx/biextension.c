@@ -390,6 +390,23 @@ void weil_odd(fp2_t *r, const digit_t* n, const int n_bitlen, ec_point_t *P, ec_
     fp2_mul(r, &r1, &r2);
 }
 
+// Used in PIKE
+void tate_odd(fp2_t *r, const digit_t* n, const int n_bitlen, ec_point_t *P, ec_point_t *Q, ec_point_t *PQ, ec_point_t *A24)
+{
+    fp2_t ixP, ixQ, ixPQ;
+    to_cubical_odd_i(P, Q, PQ, &ixP, &ixQ, &ixPQ);
+    monodromy(r, n, n_bitlen, PQ, Q, P, &ixP, &ixQ, &ixPQ, A24);
+    fp2_t tmp;
+    fp2_copy(&tmp, r);
+    fp_neg(&tmp.im, &tmp.im);
+    fp2_inv(r);
+    fp2_mul(r, r, &tmp);
+    digit_t exp[NWORDS_ORDER] = {0};
+    ibz_to_digits(n, &TORSION_PLUS_23POWER);
+    fp2_pow_vartime(r, r, n, TORSION_PLUS_23POWER->_mp_size);
+}
+
+
 // Weil pairing, PQ should be P+Q in (X:Z) coordinates
 // We assume the points are normalised correctly
 // Do we need a weil_c version?
@@ -756,7 +773,134 @@ bool fp2_dlog_35(digit_t *scal, const fp2_t *f, const fp2_t *g) {
     ibz_finalize(&scal_ibz);
 }
 
-void ec_dlog_tate_5(digit_t *scalarP1,
+void ec_dlog_weil_3_single(digit_t *scalarP1,
+                    digit_t *scalarQ1,
+                    ec_basis_t *PQ3,
+                    ec_point_t *targetP,
+                    const ec_curve_t *curve)
+{
+
+    fp2_t w0, w;
+    ec_point_t AC, A24;
+    ec_point_t PmP1, P1mQ; //PmP2, P2mQ;
+    jac_point_t xyP, xyQ, xyP1, xyP2, temp;
+    jac_point_t jac_targetP;
+
+    // we start by computing the different weil pairings
+
+    lift_point(&jac_targetP, targetP, curve);
+
+    // precomputing the correct curve data
+    fp2_copy(&AC.x, &curve->A);
+    fp2_copy(&AC.z, &curve->C);
+    A24_from_AC(&A24, &AC);
+
+    // lifting the two basis points
+    lift_basis(&xyP, &xyQ, PQ3, curve);
+    // lift_basis(&xyP1, &xyP2, basis, curve);
+
+    // computation of the differences
+    jac_neg(&temp, &jac_targetP);
+    ADD(&temp, &temp, &xyP, curve);
+    jac_to_xz(&PmP1, &temp);
+    // jac_neg(&temp, &xyP2);
+    // ADD(&temp, &temp, &xyP, curve);
+    // jac_to_xz(&PmP2, &temp);
+    jac_neg(&temp, &xyQ);
+    ADD(&temp, &temp, &jac_targetP, curve);
+    jac_to_xz(&P1mQ, &temp);
+    // jac_neg(&temp, &xyQ);
+    // ADD(&temp, &temp, &xyP2, curve);
+    // jac_to_xz(&P2mQ, &temp);
+
+    // computation of the reference weil pairing
+    weil_odd(&w0, THREEpF, THREEpF_bitlen, &PQ3->P, &PQ3->Q, &PQ3->PmQ, &A24);
+    // e(P,P1) = w0^scalarQ1
+    weil_odd(&w, THREEpF, THREEpF_bitlen, &PQ3->P, targetP, &PmP1, &A24);
+    fp2_dlog_3e(scalarQ1, &w, &w0, POWER_OF_3);
+    // e(P1,Q) = w0^scalarP1
+    weil_odd(&w, THREEpF, THREEpF_bitlen, targetP, &PQ3->Q, &P1mQ, &A24);
+    fp2_dlog_3e(scalarP1, &w, &w0, POWER_OF_3);
+    // e(P,P2) = w0^scalarQ2
+    // weil_odd(&w, THREEpF, THREEpF_bitlen, &PQ3->P, &basis->Q, &PmP2, &A24);
+    // fp2_dlog_3e(scalarQ2, &w, &w0, POWER_OF_3);
+    // // e(P2,Q) = w0^scalarP2
+    // weil_odd(&w, THREEpF, THREEpF_bitlen, &basis->Q, &PQ3->Q, &P2mQ, &A24);
+    // fp2_dlog_3e(scalarP2, &w, &w0, POWER_OF_3);
+
+#ifndef NDEBUG
+    ec_point_t test_comput;
+    ec_biscalar_mul(&test_comput, curve, scalarP1, scalarQ1, PQ3);
+    assert(ec_is_equal(&test_comput, targetP));
+    // ec_biscalar_mul(&test_comput, curve, scalarP2, scalarQ2, PQ3);
+    // assert(ec_is_equal(&test_comput, &basis->Q));
+#endif
+}
+
+void ec_dlog_weil_3(digit_t *scalarP1,
+                    digit_t *scalarQ1,
+                    digit_t *scalarP2,
+                    digit_t *scalarQ2,
+                    ec_basis_t *PQ3,
+                    ec_basis_t *basis,
+                    const ec_curve_t *curve)
+{
+
+    fp2_t w0, w;
+    ec_point_t AC, A24;
+    ec_point_t PmP1, P1mQ, PmP2, P2mQ;
+    jac_point_t xyP, xyQ, xyP1, xyP2, temp;
+
+    // we start by computing the different weil pairings
+
+    // precomputing the correct curve data
+    fp2_copy(&AC.x, &curve->A);
+    fp2_copy(&AC.z, &curve->C);
+    A24_from_AC(&A24, &AC);
+
+    // lifting the two basis points
+    lift_basis(&xyP, &xyQ, PQ3, curve);
+    lift_basis(&xyP1, &xyP2, basis, curve);
+
+    // computation of the differences
+    jac_neg(&temp, &xyP1);
+    ADD(&temp, &temp, &xyP, curve);
+    jac_to_xz(&PmP1, &temp);
+    jac_neg(&temp, &xyP2);
+    ADD(&temp, &temp, &xyP, curve);
+    jac_to_xz(&PmP2, &temp);
+    jac_neg(&temp, &xyQ);
+    ADD(&temp, &temp, &xyP1, curve);
+    jac_to_xz(&P1mQ, &temp);
+    jac_neg(&temp, &xyQ);
+    ADD(&temp, &temp, &xyP2, curve);
+    jac_to_xz(&P2mQ, &temp);
+
+    // computation of the reference weil pairing
+    weil_odd(&w0, THREEpF, THREEpF_bitlen, &PQ3->P, &PQ3->Q, &PQ3->PmQ, &A24);
+    // e(P,P1) = w0^scalarQ1
+    weil_odd(&w, THREEpF, THREEpF_bitlen, &PQ3->P, &basis->P, &PmP1, &A24);
+    fp2_dlog_3e(scalarQ1, &w, &w0, POWER_OF_3);
+    // e(P1,Q) = w0^scalarP1
+    weil_odd(&w, THREEpF, THREEpF_bitlen, &basis->P, &PQ3->Q, &P1mQ, &A24);
+    fp2_dlog_3e(scalarP1, &w, &w0, POWER_OF_3);
+    // e(P,P2) = w0^scalarQ2
+    weil_odd(&w, THREEpF, THREEpF_bitlen, &PQ3->P, &basis->Q, &PmP2, &A24);
+    fp2_dlog_3e(scalarQ2, &w, &w0, POWER_OF_3);
+    // e(P2,Q) = w0^scalarP2
+    weil_odd(&w, THREEpF, THREEpF_bitlen, &basis->Q, &PQ3->Q, &P2mQ, &A24);
+    fp2_dlog_3e(scalarP2, &w, &w0, POWER_OF_3);
+
+#ifndef NDEBUG
+    ec_point_t test_comput;
+    ec_biscalar_mul(&test_comput, curve, scalarP1, scalarQ1, PQ3);
+    assert(ec_is_equal(&test_comput, &basis->P));
+    ec_biscalar_mul(&test_comput, curve, scalarP2, scalarQ2, PQ3);
+    assert(ec_is_equal(&test_comput, &basis->Q));
+#endif
+}
+
+void ec_dlog_weil_5(digit_t *scalarP1,
                     digit_t *scalarQ1,
                     digit_t *scalarP2,
                     digit_t *scalarQ2,
@@ -819,7 +963,7 @@ void ec_dlog_tate_5(digit_t *scalarP1,
 #endif
 }
 
-void ec_dlog_tate_35(digit_t *scalarP1,
+void ec_dlog_weil_35(digit_t *scalarP1,
                     digit_t *scalarQ1,
                     digit_t *scalarP2,
                     digit_t *scalarQ2,

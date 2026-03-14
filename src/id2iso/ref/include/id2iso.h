@@ -142,6 +142,14 @@ void endomorphism_application_three_basis(ec_basis_t *bas,
                                             ec_curve_t *E,
                                             quat_alg_elem_t *theta,
                                             int f);
+// helper function to apply some endomorphism of E0 on the precomputed basis of E[5^f]
+// works in place
+void endomorphism_application_five_basis(ec_basis_t *bas, 
+                                            ec_curve_t *E, 
+                                            quat_alg_elem_t *theta,
+                                            int f);
+
+void endomorphism_application_single_point(ec_point_t *R, const ec_curve_t *E, const quat_alg_elem_t *theta, const ibz_t *order);
 /**
  * @brief Translating a kernel on the curve E0, represented as two vectors with respect to the
  * precomputed 2^f- and 3^e-torsion bases, into the corresponding O0-ideal

@@ -547,10 +547,20 @@ void ec_eval_odd(ec_curve_t *image,
                  ec_point_t *points,
                  unsigned short length);
 
+// Used in POKE, INKE
+// Evaluate 3^e-isogeny
 void ec_eval_three(ec_curve_t *image,
                    const ec_isog_odd_t *phi,
                    ec_point_t *points,
                    unsigned short length);
+
+// Used in PIKE
+// Evaluate 5^e-isogeny
+void ec_eval_five(ec_curve_t *image,
+                   const ec_isog_odd_t *phi,
+                   ec_point_t *points,
+                   unsigned short length);
+
 
 /**
  * @brief Evaluate isogeny of odd degree on list of torsion bases
@@ -576,6 +586,13 @@ void jac_to_xz(ec_point_t *P, const jac_point_t *xyP);
 bool is_jac_xz_equal(const jac_point_t *P, const ec_point_t *Q);
 void ADD(jac_point_t *R, jac_point_t const *P, jac_point_t const *Q, ec_curve_t const *AC);
 void DBL(jac_point_t *Q, jac_point_t const *P, ec_curve_t const *AC);
+// scalar multiplication R <- k*P
+void MUL_generic(jac_point_t *R,
+                const jac_point_t *P,
+                const digit_t *k,
+                const int nwords,
+                const ec_curve_t *curve
+            );
 void DBLMUL_generic(jac_point_t *R,
                     const jac_point_t *P,
                     const digit_t *k,

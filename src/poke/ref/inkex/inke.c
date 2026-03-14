@@ -99,7 +99,7 @@ int eval_dimtwo_isog_with_middle(theta_chain_t *phi, ibz_t *q, ec_basis_t *evalP
     digit_t t[NWORDS_ORDER] = {0};
 
     const int nwords = (TORSION_3POWER_BYTES * 8 + RADIX) / RADIX;
-    ec_dlog_tate_3(&x1, &x2, &x3, &x4, &imRS_basis, evalPQmid, &phi->codomain.E1);
+    ec_dlog_weil_3(&x1, &x2, &x3, &x4, &imRS_basis, evalPQmid, &phi->codomain.E1);
     ec_biscalar_mul_bounded(&evalPQ->P, &E01->E2, x1, x2, &RS, TORSION_3POWER_BYTES * 8);
     ec_biscalar_mul_bounded(&evalPQ->Q, &E01->E2, x3, x4, &RS, TORSION_3POWER_BYTES * 8);
     mp_add(x5, x1, THREEpF, nwords);

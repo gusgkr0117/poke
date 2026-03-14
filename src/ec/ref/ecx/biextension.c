@@ -600,7 +600,7 @@ bool fp2_dlog_3e(digit_t *scal, const fp2_t *f, const fp2_t *g, int e)
     return ok;
 }
 
-void ec_dlog_tate_3(digit_t *scalarP1,
+void ec_dlog_weil_3(digit_t *scalarP1,
                     digit_t *scalarQ1,
                     digit_t *scalarP2,
                     digit_t *scalarQ2,

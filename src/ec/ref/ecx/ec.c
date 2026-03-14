@@ -918,6 +918,31 @@ recover_y(fp2_t *y, fp2_t const *Px, ec_curve_t const *curve)
     fp2_sqrt(y);
 }
 
+// scalar multiplication R <- k*P
+void MUL_generic(jac_point_t *R,
+                const jac_point_t *P,
+                const digit_t *k,
+                const int nwords,
+                const ec_curve_t *curve
+            )
+{
+    digit_t k_t;
+    jac_point_t R_t;
+
+    jac_init(&R_t);
+    for(int i = nwords; i > 0; i--) {
+        for (int j = 0; j < RADIX; j++) {
+            k_t = k[i - 1] >> (RADIX - 1 - j);
+            k_t &= 0x1;
+            DBL(&R_t, &R_t, curve);
+            if (k_t == 1) {
+                ADD(&R_t, &R_t, P, curve);
+            }
+        }
+    }
+    copy_jac_point(R, &R_t);
+}
+
 // Double-scalar multiplication R <- k*P + l*Q, fixed for (64*size)-bit scalars
 void
 DBLMUL_generic(jac_point_t *R,

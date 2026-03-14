@@ -385,6 +385,63 @@ matrix_application_three_basis(ec_basis_t *bas, ec_curve_t *E, ibz_mat_2x2_t *ma
     ibz_finalize(&pow_three);
 }
 
+// helper function to apply a matrix to a basis of E[5^f]
+// works in place
+void
+matrix_application_five_basis(ec_basis_t *bas, ec_curve_t *E, ibz_mat_2x2_t *mat, int f)
+{
+    digit_t scalars[2][NWORDS_FIELD] = { 0 };
+
+    ibz_t tmp, pow_five;
+    ibz_init(&tmp);
+    ibz_init(&pow_five);
+    ibz_pow(&pow_five, &ibz_const_five, f);
+
+    ec_basis_t tmp_bas;
+    copy_point(&tmp_bas.P, &bas->P);
+    copy_point(&tmp_bas.Q, &bas->Q);
+    copy_point(&tmp_bas.PmQ, &bas->PmQ);
+
+    // reduction mod 5f
+    ibz_mod(&(*mat)[0][0], &(*mat)[0][0], &pow_five);
+    ibz_mod(&(*mat)[0][1], &(*mat)[0][1], &pow_five);
+    ibz_mod(&(*mat)[1][0], &(*mat)[1][0], &pow_five);
+    ibz_mod(&(*mat)[1][1], &(*mat)[1][1], &pow_five);
+
+    jac_point_t P, Q, R;
+    
+
+    // first basis element
+    ibz_to_digit_array(scalars[0], &(*mat)[0][0]);
+    // ibz_set(&mat[0][1],0);
+    ibz_to_digit_array(scalars[1], &(*mat)[1][0]);
+    // lift_basis(&P, &Q, &tmp_bas, E);
+    // DBLMUL_generic(&R, &P, scalars[0], &Q, scalars[1], E, NWORDS_FIELD);
+    // jac_to_xz(&bas->P, &R);
+    ec_biscalar_mul(&bas->P, E, scalars[0], scalars[1], &tmp_bas);
+    // point_print("bas->P: ", bas->P);
+    ibz_to_digit_array(scalars[0], &(*mat)[0][1]);
+    ibz_to_digit_array(scalars[1], &(*mat)[1][1]);
+    // lift_basis(&P, &Q, &tmp_bas, E);
+    // DBLMUL_generic(&R, &P, scalars[0], &Q, scalars[1], E, NWORDS_FIELD);
+    // jac_to_xz(&bas->Q, &R);
+    ec_biscalar_mul(&bas->Q, E, scalars[0], scalars[1], &tmp_bas);
+
+    ibz_sub(&tmp, &(*mat)[0][0], &(*mat)[0][1]);
+    ibz_mod(&tmp, &tmp, &pow_five);
+    ibz_to_digit_array(scalars[0], &tmp);
+    ibz_sub(&tmp, &(*mat)[1][0], &(*mat)[1][1]);
+    ibz_mod(&tmp, &tmp, &pow_five);
+    ibz_to_digit_array(scalars[1], &tmp);
+    // lift_basis(&P, &Q, &tmp_bas, E);
+    // DBLMUL_generic(&R, &P, scalars[0], &Q, scalars[1], E, NWORDS_FIELD);
+    // jac_to_xz(&bas->PmQ, &R);
+    ec_biscalar_mul(&bas->PmQ, E, scalars[0], scalars[1], &tmp_bas);
+
+    ibz_finalize(&tmp);
+    ibz_finalize(&pow_five);
+}
+
 // helper function to apply some endomorphism of E0 on the precomputed basis of E[2^f]
 // works in place
 void
@@ -547,6 +604,116 @@ void endomorphism_application_three_basis(ec_basis_t *bas, ec_curve_t *E, quat_a
     ibz_vec_4_finalize(&coeffs);
     ibz_mat_2x2_finalize(&mat);
     ibz_finalize(&content);
+}
+
+// helper function to apply some endomorphism of E0 on the precomputed basis of E[5^f]
+// works in place
+void endomorphism_application_five_basis(ec_basis_t *bas, ec_curve_t *E, quat_alg_elem_t *theta, int f) {
+    ibz_t tmp;
+    ibz_init(&tmp);
+    ibz_vec_4_t coeffs;
+    ibz_vec_4_init(&coeffs);
+    ibz_mat_2x2_t mat;
+    ibz_mat_2x2_init(&mat);
+
+    ibz_t content;
+    ibz_init(&content);
+
+    // // decomposing theta on the basis
+    quat_alg_make_primitive(&coeffs, &content, theta, &MAXORD_O0, &QUATALG_PINFTY);
+    assert(ibz_get(&content) % 2 == 1);
+
+    // ibz_vec_4_print(&coeffs);
+
+    ibz_set(&mat[0][0], 0);
+    ibz_set(&mat[0][1], 0);
+    ibz_set(&mat[1][0], 0);
+    ibz_set(&mat[1][1], 0);
+
+    // computing the matrix
+    for (unsigned i = 0; i < 2; ++i) {
+        ibz_add(&mat[i][i], &mat[i][i], &coeffs[0]);
+        for (unsigned j = 0; j < 2; ++j) {
+            ibz_mul(&tmp, &ACTION_GEN2[i][j], &coeffs[1]);
+            ibz_add(&mat[i][j], &mat[i][j], &tmp);
+            ibz_mul(&tmp, &ACTION_GEN3[i][j], &coeffs[2]);
+            ibz_add(&mat[i][j], &mat[i][j], &tmp);
+            ibz_mul(&tmp, &ACTION_GEN4[i][j], &coeffs[3]);
+            ibz_add(&mat[i][j], &mat[i][j], &tmp);
+            ibz_mul(&mat[i][j], &mat[i][j], &content);
+            // ibz_mod(&mat[i][j],&mat[i][j],&twopow);
+        }
+    }
+
+    // and now we apply it
+    matrix_application_five_basis(bas, E, &mat, f);
+
+    ibz_vec_4_finalize(&coeffs);
+    ibz_mat_2x2_finalize(&mat);
+    ibz_finalize(&content);
+}
+
+// helper function to apply some endomorphism of E0 on a single jacobian point P of an arbitrary order
+// works in place
+void endomorphism_application_single_point(ec_point_t *R, const ec_curve_t *E, const quat_alg_elem_t *theta, const ibz_t *order) {
+    jac_point_t Rt, Rtt, R_jac;
+    fp2_t fp2_i;
+    digit_t tmp_digit[NWORDS_ORDER] = {0};
+    ibz_t a, b, c, d, t;
+    ec_point_t tmp;
+
+    fp2_set_zero(&fp2_i);
+    fp_set_one(&fp2_i.im);
+    lift_point(&R_jac, R, E);
+    // jac_init(&Rt);
+    ibz_init(&a); ibz_init(&b); ibz_init(&c); ibz_init(&d); ibz_init(&t);
+    ibz_invmod(&t, &theta->denom, order);
+    ibz_mul(&a, &theta->coord[0], &t); ibz_mod(&a, &a, order);
+    ibz_mul(&b, &theta->coord[1], &t); ibz_mod(&b, &b, order);
+    ibz_mul(&c, &theta->coord[2], &t); ibz_mod(&c, &c, order);
+    ibz_mul(&d, &theta->coord[3], &t); ibz_mod(&d, &d, order);
+
+    // quat_alg_elem_print(theta);
+
+    ibz_to_digits(tmp_digit, &a);
+    MUL_generic(&Rt, &R_jac, tmp_digit, (*order)->_mp_size, E);
+
+    // (x, y) -> (-x, yi)
+    memset(tmp_digit, 0, NWORDS_ORDER * RADIX / 8);
+    copy_jac_point(&Rtt, &R_jac);
+    ibz_to_digits(tmp_digit, &b);
+    fp2_neg(&Rtt.x, &Rtt.x);
+    fp2_mul(&Rtt.y, &Rtt.y, &fp2_i);
+    MUL_generic(&Rtt, &Rtt, tmp_digit, (*order)->_mp_size, E);
+    ADD(&Rt, &Rt, &Rtt, E);
+
+    // (x, y) -> (x^p, y^p)
+    memset(tmp_digit, 0, NWORDS_ORDER * RADIX / 8);
+    copy_jac_point(&Rtt, &R_jac);
+    ibz_to_digits(tmp_digit, &c);
+    fp2_conj(&Rtt.x, &Rtt.x);
+    fp2_conj(&Rtt.y, &Rtt.y);
+    MUL_generic(&Rtt, &Rtt, tmp_digit, (*order)->_mp_size, E);
+    ADD(&Rt, &Rt, &Rtt, E);
+
+    // (x, y) -> (-x^p, y^p * i)
+    memset(tmp_digit, 0, NWORDS_ORDER * RADIX / 8);
+    copy_jac_point(&Rtt, &R_jac);
+    ibz_to_digits(tmp_digit, &d);
+    fp2_conj(&Rtt.x, &Rtt.x);
+    fp2_neg(&Rtt.x, &Rtt.x);
+    fp2_conj(&Rtt.y, &Rtt.y);
+    fp2_mul(&Rtt.y, &Rtt.y, &fp2_i);
+    MUL_generic(&Rtt, &Rtt, tmp_digit, (*order)->_mp_size, E);
+    ADD(&Rt, &Rt, &Rtt, E);
+
+    jac_to_xz(R, &Rt);
+
+    ibz_finalize(&a);
+    ibz_finalize(&b);
+    ibz_finalize(&c);
+    ibz_finalize(&d);
+    ibz_finalize(&t);
 }
 
 void

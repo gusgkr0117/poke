@@ -4,6 +4,11 @@
 
 /* Arithmetic modulo X^2 + 1 */
 
+void fp2_conj(fp2_t *x, const fp2_t *y) {
+    fp_neg(&x->im, &y->im);
+    fp_copy(&x->re, &y->re);
+}
+
 void
 fp2_set_small(fp2_t *x, const digit_t val)
 {
