@@ -1752,7 +1752,7 @@ theta_chain_comput_balanced(theta_chain_t *out,
     ibz_finalize(&b);
 }
 
-void
+int
 theta_chain_comput_strategy(theta_chain_t *out,
                             int n,
                             theta_couple_curve_t *E12,
@@ -1943,13 +1943,13 @@ theta_chain_comput_strategy(theta_chain_t *out,
     // final splitting step
     int is_split = splitting_comput(&out->last_step, &out->steps[n - 2].codomain);
     if (!is_split) {
-        printf("not splitted!\n");
+        return 0;
     }
-    assert(is_split);
 
     // computing the curves of the codomain
     theta_product_structure_to_elliptic_product(&out->codomain, &out->last_step.B);
     // TOC_clock(t,"splitting");
+    return 1;
 }
 
 void

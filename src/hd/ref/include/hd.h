@@ -301,7 +301,7 @@ void theta_chain_comput_balanced(theta_chain_t *out,
  * uses the strategy given in input
  *
  */
-void theta_chain_comput_strategy(theta_chain_t *out,
+int theta_chain_comput_strategy(theta_chain_t *out,
                                  int n,
                                  theta_couple_curve_t *E12,
                                  const theta_couple_point_t *T1,

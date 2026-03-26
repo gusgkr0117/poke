@@ -2,6 +2,7 @@
 #include "mp.h"
 #include "fp_constants.h"
 #include <assert.h>
+#include <string.h>
 
 // The below functions were taken from the GF module
 

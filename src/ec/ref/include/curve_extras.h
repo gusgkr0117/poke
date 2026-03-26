@@ -29,6 +29,7 @@ void xDBLMUL(ec_point_t *S,
              digit_t const *l,
              ec_point_t const *PQ,
              const ec_curve_t *curve);
+// The input curve must be normalized
 int xDBLMUL_bounded(ec_point_t *S,
              const ec_point_t *P,
              const digit_t *k,

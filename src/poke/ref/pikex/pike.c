@@ -524,7 +524,6 @@ int encrypt(pike_ct_t *ct, const pike_pk_t *pk, const unsigned char *m, const si
     // Masking evaluated points
     xMUL(&ct->PQ2_B.P, &eval_points[0], omega_scalar, &EB);
     xMUL(&ct->PQ2_B.Q, &eval_points[1], omega_inv_scalar, &EB);
-    // necessary?
     xADD(&pointT, &eval_points[0], &eval_points[1], &eval_points[2]);
 
     ec_curve_normalize_A24(&EB);
@@ -659,7 +658,7 @@ int decrypt(unsigned char *m, size_t *m_len, const pike_ct_t *ct, const pike_sk_
     xADD(&pointT, &ct->PQ2_AB.P, &ct->PQ2_AB.Q, &ct->PQ2_AB.PmQ);
     ec_curve_normalize_A24(&EBAB.E2);
     xDBLMUL_bounded(&T1m2.P2, &ct->PQ2_AB.P, T1_scalar, &ct->PQ2_AB.Q, T2_scalar, &pointT, &EBAB.E2, POWER_OF_2);
-    theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1);
+    if(!theta_chain_comput_strategy(&hd_isog, TORSION_PLUS_EVEN_POWER - 2, &EBAB, &T1, &T2, &T1m2, strategies[2], 1)) return 0;
 
     tmp.P1 = ct->QsB;
     ec_set_zero(&tmp.P2);
@@ -708,6 +707,126 @@ int decrypt(unsigned char *m, size_t *m_len, const pike_ct_t *ct, const pike_sk_
     return 1;
 }
 
+
+int check_ct(const pike_ct_t *ct, const pike_pk_t *pk, const unsigned char *seed, const size_t seed_len) {
+    ec_isog_odd_t isogB;
+    ibz_t beta1, beta2, omega, omega_inv, A, t1, t2;
+    ec_curve_t EB1, EB, EAB1, EAB;
+    ec_point_t pointT, eval_points[5];
+    ec_basis_t PQ2_B;
+    ec_point_t QsB, PsAB;
+    bool validation_check;
+    shake256ctx state;
+
+    digit_t beta1_scalar[NWORDS_ORDER] = {0}, beta2_scalar[NWORDS_ORDER] = {0}, one_scalar[NWORDS_ORDER] = {1};
+    digit_t t1_scalar[NWORDS_ORDER] = {0}, t2_scalar[NWORDS_ORDER] = {0};
+    digit_t omega_scalar[NWORDS_ORDER] = {0}, omega_inv_scalar[NWORDS_ORDER] = {0};
+
+    ibz_init(&beta1); ibz_init(&beta2); ibz_init(&A); ibz_init(&t1); ibz_init(&t2);
+    ibz_init(&omega_inv); ibz_init(&omega);
+
+    ibz_div_2exp(&A, &TORSION_PLUS_2POWER, 2);
+    if (seed != NULL) {
+        shake256_absorb(&state, seed, seed_len);
+        ibz_random_unit(&beta1, &TORSION_PLUS_3POWER, &state);
+        ibz_random_unit(&beta2, &TORSION_ODD_MINUS, &state);
+        ibz_random_unit(&omega, &A, &state);
+        ibz_random_unit(&t1, &TORSION_D, &state);
+        ibz_random_unit(&t2, &TORSION_D, &state);
+        shake256_ctx_release(&state);
+    }
+    else {
+        // Error: seed is required for checking
+        return 0;
+    }
+
+    ibz_invmod(&omega_inv, &omega, &A);
+    ibz_to_digits(omega_scalar, &omega);
+    ibz_to_digits(omega_inv_scalar, &omega_inv);
+    ibz_to_digits(beta1_scalar, &beta1);
+    ibz_to_digits(beta2_scalar, &beta2);
+    ibz_to_digits(t1_scalar, &t1);
+    ibz_to_digits(t2_scalar, &t2);
+
+    ibz_to_digits(beta1_scalar, &beta1);
+    ibz_to_digits(beta2_scalar, &beta2);
+    
+    ec_biscalar_mul_bounded(&pointT, &CURVE_E0, one_scalar, beta2_scalar, &BASIS_FIVE, FIVEpF_bitlen);
+
+    // Compute the isogeny E0 -> EB1
+    isogB.curve = CURVE_E0;
+    isogB.degree[0] = POWER_OF_3;
+    for(int i = 1; i < P_LEN + M_LEN; i++) {
+        isogB.degree[i] = 0;
+    }
+    ec_set_zero(&isogB.ker_minus);
+    // kernel = P + beta1 * Q
+    ec_biscalar_mul_bounded(&isogB.ker_plus, &CURVE_E0, one_scalar, beta1_scalar, &BASIS_THREE, THREEpF_bitlen);
+    copy_point(&eval_points[0], &BASIS_EVEN.P);
+    copy_point(&eval_points[1], &BASIS_EVEN.Q);
+    copy_point(&eval_points[2], &BASIS_EVEN.PmQ);
+    copy_point(&eval_points[3], &BASIS_S.Q);
+    copy_point(&eval_points[4], &pointT);
+    ec_eval_three(&EB1, &isogB, (ec_point_t*)eval_points, 5);
+
+    // Compute the isogeny EB1 -> EB
+    isogB.curve = EB1;
+    isogB.degree[0] = 0;
+    isogB.degree[1] = POWER_OF_5;
+    for(int i = 2; i < P_LEN + M_LEN; i++) {
+        isogB.degree[i] = 0;
+    }
+    ec_set_zero(&isogB.ker_plus);
+    copy_point(&isogB.ker_minus, &eval_points[4]);
+    ec_eval_five(&EB, &isogB, (ec_point_t*)eval_points, 4);
+
+    xMUL(&PQ2_B.P, &eval_points[0], omega_scalar, &EB);
+    xMUL(&PQ2_B.Q, &eval_points[1], omega_inv_scalar, &EB);
+    xADD(&pointT, &eval_points[0], &eval_points[1], &eval_points[2]);
+
+    ec_curve_normalize_A24(&EB);
+    xDBLMUL_bounded(&PQ2_B.PmQ, &eval_points[0], omega_scalar, &eval_points[1], omega_inv_scalar, &pointT, &EB, POWER_OF_2);
+    xMUL(&QsB, &eval_points[3], t1_scalar, &EB);
+
+    fp2_t j1, j2;
+    ec_j_inv(&j1, &EB);
+    ec_j_inv(&j2, &ct->EB);
+
+    validation_check = ec_is_equal(&ct->PQ2_B.P, &PQ2_B.P) & ec_is_equal(&ct->PQ2_B.Q, &PQ2_B.Q) & ec_is_equal(&ct->PQ2_B.PmQ, &PQ2_B.PmQ) & ec_is_equal(&ct->QsB, &QsB);
+    validation_check &= (fp2_is_equal(&j1, &j2) != 0);
+    if (!validation_check) {
+        return 0;
+    }
+    // EA -> EAB1
+    isogB.curve = pk->EA;
+    isogB.degree[0] = POWER_OF_3;
+    isogB.degree[1] = 0;
+    ec_biscalar_mul_bounded(&isogB.ker_plus, &pk->EA, one_scalar, beta1_scalar, &pk->PQ3, THREEpF_bitlen);
+    ec_set_zero(&isogB.ker_minus);
+    ec_biscalar_mul_bounded(&pointT, &pk->EA, one_scalar, beta2_scalar, &pk->PQ5, FIVEpF_bitlen);
+    copy_point(&eval_points[0], &pk->imPs);
+    copy_point(&eval_points[1], &pointT);
+    ec_eval_three(&EAB1, &isogB, (ec_point_t*)eval_points, 2);
+
+    // EAB1 -> EAB
+    isogB.curve = EAB1;
+    isogB.degree[0] = 0;
+    isogB.degree[1] = POWER_OF_5;
+    ec_set_zero(&isogB.ker_plus);
+    copy_point(&isogB.ker_minus, &eval_points[1]);
+    ec_eval_five(&EAB, &isogB, (ec_point_t*)eval_points, 1);
+    xMUL(&PsAB, &eval_points[0], t2_scalar, &EAB);
+    validation_check = ec_is_equal(&ct->PsAB, &PsAB);
+
+    ibz_finalize(&t1);
+    ibz_finalize(&t2);
+    ibz_finalize(&A);
+    ibz_finalize(&omega);
+    ibz_finalize(&beta1);
+    ibz_finalize(&beta2);
+    return validation_check;
+}
+
 ////
 //// Key Encapsulation Mechanism using Fujisaki-Okamoto transform
 ////
@@ -716,67 +835,25 @@ const unsigned char G_hash_str[9] = "encrypt_";
 const size_t G_hash_str_len = 8;
 
 int ct_encode(unsigned char *encoded_ct, pike_ct_t *ct) {
-    ec_basis_t added_basis;
     jac_point_t P2, Q2, Px, Qx;
     jac_point_t R, S, RmS;
     // total_len += NWORDS_FIELD * 2; // EB
     // total_len += NWORDS_ORDER * 6; // PQ2_B + PQxy_B -> 4/3 * lambda
     // total_len += NWORDS_FIELD * 2; // EAB
     // total_len += NWORDS_ORDER * 6; // PQ2_AB -> lambda
-    lift_basis(&P2, &Q2, &ct->PQ2_B, &ct->EB);
-    // lift_basis(&Px, &Qx, &ct->PQxy_B, &ct->EB);
-    ADD(&R, &P2, &Px, &ct->EB);
-    ADD(&S, &Q2, &Qx, &ct->EB);
-    jac_neg(&RmS, &S);
-    ADD(&RmS, &R, &RmS, &ct->EB);
-    jac_to_xz(&added_basis.P, &R);
-    jac_to_xz(&added_basis.Q, &S);
-    jac_to_xz(&added_basis.PmQ, &RmS);
+    ec_curve_normalize_A24(&ct->EB);
+    ec_curve_normalize_A24(&ct->EAB);
 
     fp2_encode(encoded_ct, &ct->EB.A);
-    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 2 / 8, &added_basis.P.x);
-    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 4 / 8, &added_basis.Q.x);
-    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 6 / 8, &added_basis.PmQ.x);
-    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 8 / 8, &ct->EAB.A);
-    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 10 / 8, &ct->PQ2_AB.P.x);
-    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 12 / 8, &ct->PQ2_AB.Q.x);
-    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 14 / 8, &ct->PQ2_AB.PmQ.x);
-
-    return 1;
-}
-
-int ct_decode(pike_ct_t *ct, const unsigned char *encoded_ct) {
-    ec_basis_t added_basis;
-    ibz_t five_inv, two_inv;
-    ibz_init(&five_inv); ibz_init(&two_inv);
-
-    fp2_decode(&ct->EB.A, encoded_ct);
-    fp2_decode(&added_basis.P.x, encoded_ct + NWORDS_FIELD * RADIX * 2 / 8);
-    fp2_decode(&added_basis.Q.x, encoded_ct + NWORDS_FIELD * RADIX * 4 / 8);
-    fp2_decode(&added_basis.PmQ.x, encoded_ct + NWORDS_FIELD * RADIX * 6 / 8);
-    fp2_set_one(&added_basis.P.z);
-    fp2_set_one(&added_basis.Q.z);
-    fp2_set_one(&added_basis.PmQ.z);
-    fp2_decode(&ct->EAB.A, encoded_ct + NWORDS_FIELD * RADIX * 8 / 8);
-    fp2_decode(&ct->PQ2_AB.P.x, encoded_ct + NWORDS_FIELD * RADIX * 10 / 8);
-    fp2_decode(&ct->PQ2_AB.Q.x, encoded_ct + NWORDS_FIELD * RADIX * 12 / 8);
-    fp2_decode(&ct->PQ2_AB.PmQ.x, encoded_ct + NWORDS_FIELD * RADIX * 14 / 8);
-    fp2_set_one(&ct->PQ2_AB.P.z);
-    fp2_set_one(&ct->PQ2_AB.Q.z);
-    fp2_set_one(&ct->PQ2_AB.PmQ.z);
-
-    ibz_invmod(&five_inv, &TORSION_PLUS_CPOWER, &TORSION_PLUS_2POWER);
-    ibz_invmod(&two_inv, &TORSION_PLUS_2POWER, &TORSION_PLUS_CPOWER);
-
-    ec_mul_ibz(&ct->PQ2_B.P, &ct->EB, &TORSION_PLUS_CPOWER, &added_basis.P);
-    ec_mul_ibz(&ct->PQ2_B.Q, &ct->EB, &TORSION_PLUS_CPOWER, &added_basis.Q);
-    ec_mul_ibz(&ct->PQ2_B.PmQ, &ct->EB, &TORSION_PLUS_CPOWER, &added_basis.PmQ);
-    ec_mul_ibz(&ct->PQ2_B.P, &ct->EB, &five_inv, &added_basis.P);
-    ec_mul_ibz(&ct->PQ2_B.Q, &ct->EB, &five_inv, &added_basis.Q);
-    ec_mul_ibz(&ct->PQ2_B.PmQ, &ct->EB, &five_inv, &added_basis.PmQ);
-
-    ibz_finalize(&five_inv);
-    ibz_finalize(&two_inv);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 2 / 8, &ct->PQ2_B.P.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 4 / 8, &ct->PQ2_B.Q.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 6 / 8, &ct->PQ2_B.PmQ.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 8 / 8, &ct->QsB.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 10 / 8, &ct->EAB.A);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 12 / 8, &ct->PQ2_AB.P.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 14 / 8, &ct->PQ2_AB.Q.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 16 / 8, &ct->PQ2_AB.PmQ.x);
+    fp2_encode(encoded_ct + NWORDS_FIELD * RADIX * 18 / 8, &ct->PsAB.x);
 
     return 1;
 }
@@ -785,7 +862,7 @@ int encaps(unsigned char *key, pike_ct_t *ct, const pike_pk_t *pk) {
     unsigned char m[32];
     unsigned char tt[32 + G_hash_str_len];
     unsigned char gm[32];
-    unsigned char encoded_ct[32 + NWORDS_FIELD * 16 * RADIX / 8];
+    unsigned char encoded_ct[32 + NWORDS_FIELD * 20 * RADIX / 8];
 
     randombytes(m, 32);
     memcpy(tt, G_hash_str, G_hash_str_len);
@@ -794,7 +871,7 @@ int encaps(unsigned char *key, pike_ct_t *ct, const pike_pk_t *pk) {
     encrypt(ct, pk, m, 32, gm, 32);        // ct <- Enc(pk, m; G(m))
     memcpy(encoded_ct, m, 32);
     ct_encode(encoded_ct + 32, ct);
-    SHAKE256(key, 32, encoded_ct, 32 + NWORDS_FIELD * 16 * RADIX / 8);    // K <- H(m, ct)
+    SHAKE256(key, 32, encoded_ct, 32 + NWORDS_FIELD * 20 * RADIX / 8);    // K <- H(m, ct)
     return 1;
 }
 
@@ -802,24 +879,24 @@ int decaps(unsigned char *key, pike_ct_t *ct, const pike_pk_t *pk, const pike_sk
     unsigned char m[32];
     unsigned char tt[32 + G_hash_str_len];
     unsigned char gm[32];
-    unsigned char test_ct_bytes[NWORDS_FIELD * 16 * RADIX / 8];
-    unsigned char ct_bytes[32 + NWORDS_FIELD * 16 * RADIX / 8];
+    unsigned char ct_bytes[32 + NWORDS_FIELD * 20 * RADIX / 8];
     size_t m_len;
     pike_ct_t test_ct;
 
-    decrypt(m, &m_len, ct, sk);
-    memcpy(tt, G_hash_str, G_hash_str_len);
-    memcpy(tt, m, 32);
-    SHAKE256(gm, 32, tt, 32);
-    encrypt(&test_ct, pk, m, m_len, gm, 32);    // ct <- Enc(pk, m; G(m))
-    ct_encode(test_ct_bytes, &test_ct);
     ct_encode(ct_bytes + 32, ct);
-    if (memcmp(ct_bytes + 32, test_ct_bytes, NWORDS_FIELD * 16 * RADIX / 8) != 0) {
-        memcpy(ct_bytes, dummy_m, 32);  // K <- H(s, ct)
+    if(!decrypt(m, &m_len, ct, sk)) {
+        memcpy(ct_bytes, m, 32);
     } else {
-        memcpy(ct_bytes, m, 32);        // K <- H(m, ct)
+        memcpy(tt, G_hash_str, G_hash_str_len);
+        memcpy(tt, m, 32);
+        SHAKE256(gm, 32, tt, 32);
+        if (check_ct(ct, pk, gm, 32) != 1) {
+            memcpy(ct_bytes, dummy_m, 32);  // K <- H(s || ct)
+        } else {
+            memcpy(ct_bytes, m, 32);        // K <- H(m || ct)
+        }
     }
-    SHAKE256(key, 32, ct_bytes, 32 + NWORDS_FIELD * 16 * RADIX / 8);
+    SHAKE256(key, 32, ct_bytes, 32 + NWORDS_FIELD * 20 * RADIX / 8);
 
     return 1;
 }
