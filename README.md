@@ -1,7 +1,6 @@
 # 🥗POKÉ : POint-based Key Exchange and ✒️INKE : INtermediate-curve-based Key Exchange
 This implementation is based on [SQIsign](https://github.com/SQISign/sqisign2d-west-ac24) (Apache License 2.0) and has been modified.
 
-(2026.03.13 update) The [PIKE](https://eprint.iacr.org/2026/473) code is optimized and based on [this repository](https://github.com/Kaizhan-Lin/PIKE-C-Implementation).
 + C-Implementation of the most efficient isogeny-based PKE protocols
 + GMP must be installed
 + Clang should be used
@@ -149,7 +148,6 @@ Total Test time (real) = 253.03 sec
 ```
 
 # Reference
-+ [PIKE paper](https://eprint.iacr.org/2026/473) and [C-implementation](https://github.com/Kaizhan-Lin/PIKE-C-Implementation)
 + [POKÉ paper](https://eprint.iacr.org/2024/624)
 + [SQISign git](https://github.com/SQISign/sqisign2d-west-ac24)
 + [fiat-crypto](https://github.com/mit-plv/fiat-crypto)
