@@ -12,16 +12,24 @@ This implementation is based on [SQIsign](https://github.com/SQISign/sqisign2d-w
 sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 ```
 
-## Run POKE
+## Run INKE/POKE/PIKE
+### PKE test
 ```bash
 mkdir build
 cd build
 cmake -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release ..
-make precomp
 make
 ctest -V -R "poke-test*" -E "hard"
 ```
-## Output
+### KEM test
+```bash
+mkdir build
+cd build
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release ..
+make
+ctest -V -R "poke-kem-test*"
+```
+## Output of PKE test
 Run in Apple M2 CPU 3.49GHz
 ```
 test 13
@@ -141,7 +149,6 @@ Total Test time (real) = 253.03 sec
 ```
 
 # Reference
-+ [INKE paper](https://eprint.iacr.org/2025/1458)
 + [PIKE paper](https://eprint.iacr.org/2026/473) and [C-implementation](https://github.com/Kaizhan-Lin/PIKE-C-Implementation)
 + [POKÉ paper](https://eprint.iacr.org/2024/624)
 + [SQISign git](https://github.com/SQISign/sqisign2d-west-ac24)
