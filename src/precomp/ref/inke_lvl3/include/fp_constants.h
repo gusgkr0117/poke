@@ -1,3 +1,3 @@
-#define NWORDS_FIELD 10
-#define NWORDS_ORDER 10                    
-#define BITS 583
+#define NWORDS_FIELD 13
+#define NWORDS_ORDER 13                    
+#define BITS 778

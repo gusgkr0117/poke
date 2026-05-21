@@ -2,7 +2,7 @@ set(SOURCE_FILES_GF_${SVARIANT_UPPER}_REF
     ${GFX_DIR}/fp.c
     ${GFX_DIR}/fp2.c
     ${GFX_DIR}/mp.c
-    fp_p583.c
+    fp_p778.c
 )
 
 add_library(${LIB_GF_${SVARIANT_UPPER}} ${SOURCE_FILES_GF_${SVARIANT_UPPER}_REF})

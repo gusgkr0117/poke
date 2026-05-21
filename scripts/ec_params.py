@@ -87,7 +87,8 @@ def config():
         print("Error: prime does not have the form p = f*2^a*3^b-1")
         exit(-1)
     
-    exp_params = {1 : [128, 162, 18], 3 : [192, 243, 27], 5 : [256, 324, 36]}
+    exp_params = {1 : [256, 162, 18], 3 : [384, 243, 27], 5 : [512, 324, 36]}
+    # exp_params = {1 : [128, 162, 18], 3 : [192, 243, 27], 5 : [256, 324, 36]}
     POWER_OF_2 = exp_params[lvl][0]
     POWER_OF_3 = exp_params[lvl][1]
     if Cfactor != 1: POWER_OF_5 = exp_params[lvl][2]

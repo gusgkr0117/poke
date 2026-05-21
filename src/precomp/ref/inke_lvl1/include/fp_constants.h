@@ -1,4 +1,4 @@
-#define NWORDS_FIELD 7
-#define NWORDS_ORDER 7                    
-#define BITS 392
+#define NWORDS_FIELD 9
+#define NWORDS_ORDER 9                    
+#define BITS 519
 #define LOG2P 9

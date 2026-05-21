@@ -11,7 +11,8 @@ from parameters import lvl, f, p, use_cfactor
 
 ################################################################
 
-exp_params = {1 : [128, 162, 18], 3 : [192, 243, 27], 5 : [256, 324, 36]}
+# exp_params = {1 : [128, 162, 18], 3 : [192, 243, 27], 5 : [256, 324, 36]}
+exp_params = {1 : [256, 162, 18], 3 : [384, 243, 27], 5 : [512, 324, 36]}
 POWER_OF_2 = exp_params[lvl][0]
 POWER_OF_3 = exp_params[lvl][1]
 if use_cfactor: POWER_OF_C = exp_params[lvl][2]
