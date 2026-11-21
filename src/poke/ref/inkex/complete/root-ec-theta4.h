@@ -17,9 +17,6 @@ int root_ec_theta4_init(root_ec_theta4 *T,const fq_t A,const root_extension *E);
  * ac(a^2+c^2)=2b^4. Uses only rational field operations, no square roots.
  * This does not perform a higher-dimensional factor/theta-structure change. */
 int root_ec_theta4_from_null(root_ec_theta4 *T,const fq_struct *null,const root_extension *E);
-/* Copy the same theta structure to a new extension, provided all constants
- * descend to F_(p^2). The primes must agree. No new root choices are made. */
-int root_ec_theta4_base_change(root_ec_theta4 *out,const root_ec_theta4 *in,const root_extension *E);
 void root_ec_theta4_clear(root_ec_theta4 *T);
 /* Polynomial map, including infinity and every finite point. Invalid input
  * returns zero without changing the four initialized output elements. */

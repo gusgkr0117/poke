@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "b-poke-basis.h"
 #include "root-poke-field-bridge.h"
-#include <endomorphism_action.h>
 #include <quaternion_data.h>
-#include <torsion_constants.h>
 #include <string.h>
 
 static int same_prime(const root_extension *E){
@@ -59,40 +57,4 @@ int b_poke_basis_export(ec_curve_t *curve,ec_basis_t *basis,const fq_t A,const a
     if(ok)ok=root_to_poke_fp2(&C.A,A,E)&&xz_export(&B.P,P,E)&&xz_export(&B.Q,P+1,E)&&xz_export(&B.PmQ,P+2,E);
     if(ok){fp2_set_one(&C.C);*curve=C;*basis=B;}
     a_ec_clear(&difference,E);a_ec_clear(&neg,E);return ok;
-}
-int b_poke_fixed_action(a_ec_point out[3],int three,const quat_alg_elem_t *alpha,const ibz_t *scale,const root_extension *E){
-    if((three!=0&&three!=1)||!same_prime(E))return 0;
-    const ibz_t *modulus=three?&TORSION_PLUS_3POWER:&TORSION_PLUS_2POWER;
-    const ibz_mat_2x2_t *actions[3]={&ACTION_GEN2,&ACTION_GEN3,&ACTION_GEN4};
-    ibz_vec_4_t coeff;ibz_vec_4_init(&coeff);ibz_t entry;ibz_init(&entry);fmpz_t n;fmpz_init(n);
-    fq_t A;fq_init(A,E->field);a_ec_point source[3],image[3],term;for(int i=0;i<3;i++){a_ec_init(source+i,E);a_ec_init(image+i,E);}a_ec_init(&term,E);
-    int ok=quat_lattice_contains(&coeff,&MAXORD_O0,alpha,&QUATALG_PINFTY)&&b_poke_basis_lift(A,source,&CURVE_E0,three?&BASIS_THREE:&BASIS_EVEN,E);
-    if(!ok)goto done;
-    for(int j=0;j<2;j++){
-        a_ec_infinity(image+j,E);
-        for(int i=0;i<2;i++){
-            mpz_set_ui(entry,0);if(i==j)mpz_set(entry,coeff[0]);
-            for(int k=0;k<3;k++)mpz_addmul(entry,coeff[k+1],(*actions[k])[i][j]);
-            mpz_mul(entry,entry,*scale);mpz_mod(entry,entry,*modulus);fmpz_set_mpz(n,entry);
-            a_ec_mul(&term,source+i,n,A,E);a_ec_add(image+j,image+j,&term,A,E);
-        }
-    }
-    a_ec_neg(&term,image+1,E);a_ec_add(image+2,image,&term,A,E);for(int i=0;i<3;i++)a_ec_set(out+i,image+i,E);
-done:
-    a_ec_clear(&term,E);for(int i=0;i<3;i++){a_ec_clear(image+i,E);a_ec_clear(source+i,E);}fq_clear(A,E->field);fmpz_clear(n);ibz_finalize(&entry);ibz_vec_4_finalize(&coeff);return ok;
-}
-int b_gaussian_fixed_payloads(a_ec_point two[3],a_ec_point three[3],const quat_left_ideal_t *I,const b_gaussian_certificate *C,const root_extension *E){
-    if(!b_gaussian_certificate_verify(C,I))return 0;
-    a_ec_point images[6];for(int i=0;i<6;i++)a_ec_init(images+i,E);ibz_t inverse;ibz_init(&inverse);
-    int ok=mpz_invert(inverse,C->n1,TORSION_PLUS_2POWER)&&b_poke_fixed_action(images,0,&C->transport,&inverse,E);
-    if(ok)ok=mpz_invert(inverse,C->n1,TORSION_PLUS_3POWER)&&b_poke_fixed_action(images+3,1,&C->transport,&inverse,E);
-    if(ok)for(int i=0;i<3;i++){a_ec_set(two+i,images+i,E);a_ec_set(three+i,images+3+i,E);}
-    ibz_finalize(&inverse);for(int i=0;i<6;i++)a_ec_clear(images+i,E);return ok;
-}
-int b_poke_conversion_export(inke_conversion_result *out,const fq_t A,const a_ec_point two[3],const ibz_t *degree,int steps,const root_extension *E){
-    if(steps<0||mpz_sgn(*degree)<=0)return 0;
-    inke_conversion_result result;memset(&result,0,sizeof result);
-    int ok=b_poke_basis_export(&result.curve,&result.two,A,two,E);
-    if(ok)ok=inke_pairing_degree(&BASIS_EVEN,&CURVE_E0,&result.two,&result.curve,TORSION_PLUS_EVEN_POWER,degree);
-    if(ok){result.product_steps=steps;*out=result;}return ok;
 }

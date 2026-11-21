@@ -1,16 +1,11 @@
-/* An experimental replacement translation unit for b-theta4.c.  Keep
- * its complete addition as a reference/fallback while validating the
- * diagonal Walsh fastpath independently before merging it upstream. */
+/* Walsh addition uses the complete Riemann formulas below when a chart
+ * has insufficient support. Both paths use the same native field. */
 #include "root-extension.h"
-/* The production replacement uses explicit uniform randomness for its
- * generic-context square roots, never the library's fixed-seed search. */
-#define fq_sqrt root_fq_sqrt
 #define b_theta4_add b_theta4_add_reference
 #define B_THETA4_DIFF_IMPL root_theta_diff_reference
 #define B_THETA4_THREE_IMPL root_theta_three_reference
 #include "b-theta4.c"
 #undef b_theta4_add
-#undef fq_sqrt
 
 unsigned long root_theta_fast_add_full_support=0;
 unsigned long root_theta_fast_add_one_column=0;
@@ -32,15 +27,26 @@ static int known_factor(fq_struct *out,const fq_struct *V,
  const fq_struct *P1,const fq_struct *P2,const fq_struct *Q1,const fq_struct *Q2,
  const fq_struct *denA,const fq_struct *denB,b_theta4_chart *charts,b_theta4_ctx *T){
  fq_struct *result=b_theta4_vector_new(T->count,T->field),*block=b_theta4_vector_new(T->characters,T->field),*scratch=b_theta4_vector_new(2*T->characters,T->field);
- unsigned char *done=calloc(T->count,1);fq_t den,sum;fq_init(den,T->field);fq_init(sum,T->field);int ok=0;size_t pivot=0,remaining=T->count;while(pivot<T->count&&fq_is_zero(V+pivot,T->field))pivot++;
- if(!result||!block||!scratch||!done||pivot==T->count)goto finish;
+ fq_struct *inverses=b_theta4_vector_new(T->count,T->field);
+ unsigned char *done=calloc(T->count,1);
+ int ok=0;
+ size_t pivot=0,remaining=T->count;
+ while(pivot<T->count&&fq_is_zero(V+pivot,T->field))pivot++;
+ if(!result||!block||!scratch||!inverses||!done||pivot==T->count)goto finish;
+ /* A zero V[j] never supplies a chart. Put one in its unused slot so
+  * the batch product contains only invertible elements. */
+ for(size_t j=0;j<T->count;j++){
+  if(fq_is_zero(V+j,T->field))fq_one(inverses+j,T->field);
+  else fq_mul_ui(inverses+j,V+j,(ulong)T->characters,T->field);
+ }
+ invert_nonzero_entries(inverses,T->count);
 #ifndef ROOT_FAST_FORCE_RESIDUAL
  for(unsigned pass=0;pass<=2*T->g&&remaining;pass++){
   uint32_t delta=pass?((pass<=T->g?1u:3u)<<(2*((pass-1)%T->g))):0;
   for(unsigned q=0;q<T->characters;q++){
    uint32_t base=emb(q,T->g);int need=0;for(unsigned s=0;s<T->characters;s++){uint32_t i=base+2*emb(s,T->g),j=addidx(i,delta,T->g);if(!done[i]&&!fq_is_zero(V+j,T->field)){need=1;break;}}if(!need)continue;
    if(!riemann_all(block,base,addidx(base,delta,T->g),P1,P2,Q1,Q2,denA,denB,charts,scratch,scratch+T->characters,T))goto finish;walsh(block,T->characters,T->field);
-   for(unsigned s=0;s<T->characters;s++){uint32_t i=base+2*emb(s,T->g),j=addidx(i,delta,T->g);if(done[i]||fq_is_zero(V+j,T->field))continue;fq_mul_ui(den,V+j,(ulong)T->characters,T->field);fq_inv(den,den,T->field);fq_mul(result+i,block+s,den,T->field);done[i]=1;remaining--;root_theta_fast_known_diagonal_rows++;}
+   for(unsigned s=0;s<T->characters;s++){uint32_t i=base+2*emb(s,T->g),j=addidx(i,delta,T->g);if(done[i]||fq_is_zero(V+j,T->field))continue;fq_mul(result+i,block+s,inverses+j,T->field);done[i]=1;remaining--;root_theta_fast_known_diagonal_rows++;}
   }
  }
 #endif
@@ -55,13 +61,13 @@ static int known_factor(fq_struct *out,const fq_struct *V,
    if(!riemann_all(block,base,addidx(base,delta,T->g),P1,P2,Q1,Q2,denA,denB,charts,scratch,scratch+T->characters,T))goto finish;walsh(block,T->characters,T->field);root_theta_fast_known_residual_blocks++;
    for(unsigned s=0;s<T->characters;s++){
     uint32_t i=base+2*emb(s,T->g),j=addidx(i,delta,T->g);if(done[i]||fq_is_zero(V+j,T->field))continue;
-    fq_mul_ui(den,V+j,(ulong)T->characters,T->field);fq_inv(den,den,T->field);fq_mul(result+i,block+s,den,T->field);done[i]=1;remaining--;root_theta_fast_known_residual_rows++;
+    fq_mul(result+i,block+s,inverses+j,T->field);done[i]=1;remaining--;root_theta_fast_known_residual_rows++;
    }
    if(!done[selected])goto finish;
   }
  }
  if(!b_theta4_nonzero(result,T))goto finish;b_theta4_copy(out,result,T);ok=1;
-finish:free(done);fq_clear(sum,T->field);fq_clear(den,T->field);b_theta4_vector_free(scratch,2*T->characters,T->field);b_theta4_vector_free(block,T->characters,T->field);b_theta4_vector_free(result,T->count,T->field);return ok;
+finish:free(done);b_theta4_vector_free(inverses,T->count,T->field);b_theta4_vector_free(scratch,2*T->characters,T->field);b_theta4_vector_free(block,T->characters,T->field);b_theta4_vector_free(result,T->count,T->field);return ok;
 }
 int b_theta4_diff_add(fq_struct *out,const fq_struct *P,const fq_struct *Q,const fq_struct *PmQ,b_theta4_ctx *T){
 #ifdef ROOT_FAST_VERIFY_KNOWN
@@ -181,10 +187,14 @@ int b_theta4_add(fq_struct *out,const fq_struct *P,const fq_struct *Q,b_theta4_c
    /* This spanning tree reads only parents whose higher digits are zero.
     * Their parity representatives therefore use the first axis+1 bits. */
    if(!outer_diagonal_prefix(edge,1u<<(2*axis),1u<<(axis+1),P,Q,block,scratch,T))goto done;
+   /* The parent indices at this axis are exactly 0,...,3*stride-1.
+    * Their edge coordinates are available before traversing the tree. */
+   for(size_t parent=0;parent<3*stride;parent++)
+    if(fq_is_zero(edge+parent,T->field))goto done;
+   invert_nonzero_entries(edge,3*stride);
    for(unsigned digit=1;digit<4;digit++)for(size_t low=0;low<stride;low++){
     size_t child=digit*stride+low,parent=child-stride;
-    if(fq_is_zero(edge+parent,T->field))goto done;
-    fq_div(ratio,D+child,edge+parent,T->field);fq_mul(answer+child,answer+parent,ratio,T->field);
+    fq_mul(ratio,D+child,edge+parent,T->field);fq_mul(answer+child,answer+parent,ratio,T->field);
    }
   }
   root_theta_fast_add_full_support++;

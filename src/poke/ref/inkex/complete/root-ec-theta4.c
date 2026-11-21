@@ -49,17 +49,6 @@ int root_ec_theta4_from_null(root_ec_theta4 *T,const fq_struct *null,const root_
     for(int j=0;j<4;j++)fq_set(T->null+j,null+j,f);T->ready=1;
 done:for(int j=7;j>=0;j--)fq_clear(*tmp[j],f);return T->ready;
 }
-int root_ec_theta4_base_change(root_ec_theta4 *out,const root_ec_theta4 *in,const root_extension *E){
-    if(out==in)return 0;memset(out,0,sizeof(*out));out->E=E;
-    fq_t *dst[]={&out->A,&out->t,&out->a,&out->b,&out->c,&out->k0,&out->k2};
-    const fq_struct *src[]={in->A,in->t,in->a,in->b,in->c,in->k0,in->k2};
-    for(int j=0;j<7;j++)fq_init(*dst[j],E->field);out->null=b_theta4_vector_new(4,E->field);
-    if(!out->null||!in->ready||fmpz_cmp(fq_ctx_prime(E->field),fq_ctx_prime(in->E->field)))return 0;
-    fmpz_t a,b;fmpz_init(a);fmpz_init(b);int ok=1;
-    for(int j=0;j<7;j++){if(!root_extension_descend(a,b,src[j],in->E)){ok=0;break;}root_extension_embed(*dst[j],a,b,E);}
-    if(ok){fq_set(out->null,out->a,E->field);fq_set(out->null+1,out->b,E->field);fq_set(out->null+2,out->c,E->field);fq_set(out->null+3,out->b,E->field);out->ready=1;}
-    fmpz_clear(b);fmpz_clear(a);return ok;
-}
 int root_ec_theta4_map(fq_struct *out,const a_ec_point *P,const root_ec_theta4 *T){
     if(!T->ready||!a_ec_on_curve(P,T->A,T->E))return 0;const fq_ctx_struct *f=T->E->field;
     if(P->infinity){for(int j=0;j<4;j++)fq_set(out+j,T->null+j,f);return 1;}

@@ -84,8 +84,8 @@ int b_product_fallback(ec_curve_t *target,ec_basis_t *left_images,
   point_ptrs[i]=points+16*i;int side=right_points&&i>=count-3;
   if(!product_point(points+16*i,side?&zero:payload+i,side?payload+i:&zero,T))goto done;
  }
- phase=4;a_theta_payload_input group={E,point_ptrs,count};
- if(!b_theta_balanced_init(&chain,2,exponent,E,E,null,generator_ptrs,&group,1,E->i,zeta8))goto done;
+ phase=4;a_theta_payload_input group={point_ptrs,count};
+ if(!b_theta_balanced_init(&chain,2,exponent,E,null,generator_ptrs,&group,1,E->i,zeta8))goto done;
  while(chain.state.remaining){if(!b_theta_balanced_step(&chain))goto done;if(C->progress)C->progress(C->progress_context,0,2,chain.state.completed,exponent);}
  phase=5;if(!root_theta_product_init(&split,chain.state.theta.null,zeta8,E))goto done;
  for(size_t i=0;i<count;i++){
@@ -105,7 +105,6 @@ int b_product_fallback(ec_curve_t *target,ec_basis_t *left_images,
  if(right_points&&!b_poke_basis_export(&check_curve,&result_right,split.factors[selected].elliptic.A,images[selected]+used,E))goto done;
  *target=result_curve;if(left_images)*left_images=result_left;if(right_images)*right_images=result_right;status=INKE_SAMPLE_OK;phase=0;
 done:
- if(status==INKE_SAMPLE_INVALID&&phase==4&&chain.state.last_error==-2)status=INKE_SAMPLE_RNG_ERROR;
  if(stage)*stage=(int)phase;root_theta_product_clear(&split);b_theta_balanced_clear(&chain);
  fmpz_clear(order);fmpz_clear(scalar);b_theta4_vector_free(generators,32,E->field);b_theta4_vector_free(points,count*16,E->field);b_theta4_vector_free(null,16,E->field);
  a_ec_clear(&multiple,E);

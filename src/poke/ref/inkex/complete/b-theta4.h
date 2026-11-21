@@ -1,6 +1,6 @@
 #ifndef INKE_RESEARCH_THETA4_H
 #define INKE_RESEARCH_THETA4_H
-#include <flint/fq.h>
+#include "root-extension.h"
 #include <stddef.h>
 #include <stdint.h>
 

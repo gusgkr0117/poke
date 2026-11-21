@@ -1,13 +1,11 @@
 #ifndef INKE_RESEARCH_COMPLETE_KEYGEN_H
 #define INKE_RESEARCH_COMPLETE_KEYGEN_H
-#include "b-uniform-keygen.h"
 #include "b-product-fallback.h"
 #include "b-fast-keygen.h"
 /* Public, per-parameter setup; zero initialize before init. It can be reused
  * serially across keys. The RNG context must remain alive until clear. */
 typedef struct {
- b_gaussian_plans plans;
- b_gaussian_converter converter;
+ root_extension field;
  b_product_context product;
  int ready;
 } b_complete_public;
@@ -17,16 +15,19 @@ void b_complete_public_clear(b_complete_public *public_context);
 /* A single selected receiver instance; zero initialize before init.
  * Clearing means abandoning this key,
  * so do not clear/reinitialize on RETRY. Public context outlives the state.
- * No output Keygen succeeds unless conversion, finish, and model checks do.
- * This is the integrated implementation interface, not an assertion that
- * every full-dimensional geometric test or benchmark has completed. */
+ * The verified map is retained on each retry of the final construction. */
 typedef struct {
- b_uniform_keygen key;
- b_uniform_keygen_options options;
+ struct {
+     ibz_t q;
+     unsigned int a;
+     int has_q,has_conversion,complete;
+     int phase,last_stage;
+     unsigned long finish_failures;
+     inke_conversion_result conversion;
+ } key;
  b_complete_public *public_context;
  b_fast_counts fast_counts;
  unsigned long fast_trials;
- int fast_done,fast_success;
  int ready;
 } b_complete_keygen;
 int b_complete_keygen_init(b_complete_keygen *state,b_complete_public *public_context,

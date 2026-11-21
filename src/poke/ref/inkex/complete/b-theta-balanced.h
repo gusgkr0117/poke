@@ -14,7 +14,7 @@ typedef struct {
     int ready;
 } b_theta_balanced;
 int b_theta_balanced_init(b_theta_balanced *out,unsigned g,unsigned exponent,
-    const root_extension *base,const root_extension *kernel_field,
+    const root_extension *base,
     const fq_struct *null,const fq_struct *const *generators,
     const a_theta_payload_input *payloads,size_t group_count,
     const fq_t zeta4,const fq_t zeta8);

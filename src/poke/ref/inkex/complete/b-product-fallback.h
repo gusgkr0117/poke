@@ -1,8 +1,10 @@
 #ifndef INKE_RESEARCH_PRODUCT_FALLBACK_H
 #define INKE_RESEARCH_PRODUCT_FALLBACK_H
 #include "b-poke-basis.h"
-#include "a-kani-fullchain.h"
+#include "b-theta-balanced.h"
 #include <inke_keygen.h>
+typedef void (*a_kani_progress)(void *context,size_t prime_index,unsigned long ell,
+                               unsigned completed,unsigned total);
 /* Public field setup is reused between finish/decrypt calls. The borrowed
  * base and the RNG context must outlive this zero-initialized context. */
 typedef struct {

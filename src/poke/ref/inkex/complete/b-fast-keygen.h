@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #ifndef INKE_FAST_KEYGEN_H
 #define INKE_FAST_KEYGEN_H
-#include "a-extension-ec.h"
+#include "root-extension.h"
 #include <inke_conversion.h>
 
 /* Default work per Keygen step. A miss resumes fast search at the SAME q;
@@ -20,7 +20,7 @@ typedef struct {
  * cause an invalid output because the final checks are exact.
  * OK/RETRY/INVALID/RNG_ERROR use the INKE_SAMPLE_* values. */
 int b_fast_sample_theta(quat_alg_elem_t *theta,const ibz_t *target,
-    unsigned long candidate_limit,b_fast_counts *counts,a_ec_rng rng,void *context);
+    unsigned long candidate_limit,b_fast_counts *counts,root_random_bytes rng,void *context);
 
 /* For verified primitive theta of norm d*3^b, compute
  * phi=eta o theta/[3^b], ker eta=theta(E0[3^b]). Retain the exact configured
@@ -33,6 +33,6 @@ int b_fast_convert_theta(inke_conversion_result *out,const quat_alg_elem_t *thet
  * RNG_ERROR/INVALID must be surfaced, not interpreted as permission to choose
  * another q. The caller caches a successful conversion across finish retries. */
 int b_fast_receiver(inke_conversion_result *out,const ibz_t *q,unsigned int a,
-    unsigned long candidate_limit,b_fast_counts *counts,a_ec_rng rng,void *context,
+    unsigned long candidate_limit,b_fast_counts *counts,root_random_bytes rng,void *context,
     int *stage);
 #endif

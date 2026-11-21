@@ -180,6 +180,19 @@ static void L(fq_t out, unsigned chi, uint32_t i, uint32_t j,
   }
   fq_clear(v, T->field);
 }
+/* All entries passed here are nonzero. A genus-two theta vector has
+ * 16 coordinates. The native routine uses stack temporaries, so larger
+ * input vectors are processed in the same bounded batches. */
+static void invert_nonzero_entries(fq_struct *entries, size_t count)
+{
+  while (count) {
+    int batch = count < 16 ? (int)count : 16;
+    fp2_batched_inv(entries, batch);
+    entries += batch;
+    count -= (size_t)batch;
+  }
+}
+
 static void walsh(fq_struct *v,size_t n,const fq_ctx_t f);
 static b_theta4_chart *chart_pair(unsigned chi, unsigned delta,
                                   b_theta4_chart *charts, const fq_struct *A,
@@ -200,11 +213,21 @@ static b_theta4_chart *chart_pair(unsigned chi, unsigned delta,
         fq_mul(den+t,A+addidx(k,e,T->g),B+addidx(l,e,T->g),T->field);
       }
       walsh(den,T->characters,T->field);
+      /* Each character keeps its original first nonzero denominator.
+       * Pack the newly found ones into the front of den for one inversion. */
+      unsigned selected[256], found=0;
       for(unsigned t=0;t<T->characters;t++){
         b_theta4_chart *d=charts+t*T->characters+delta;
         if(!d->ready&&!fq_is_zero(den+t,T->field)){
-          d->k=k;d->l=l;fq_inv(d->inverse_denominator,den+t,T->field);d->ready=1;
+          selected[found]=t;
+          fq_set(den+found,den+t,T->field);
+          found++;
         }
+      }
+      invert_nonzero_entries(den,found);
+      for(unsigned u=0;u<found;u++){
+        b_theta4_chart *d=charts+selected[u]*T->characters+delta;
+        d->k=k;d->l=l;fq_set(d->inverse_denominator,den+u,T->field);d->ready=1;
       }
       if(c->ready){b_theta4_vector_free(den,T->characters,T->field);return c;}
     }
@@ -618,13 +641,13 @@ int b_theta4_good_basis2(fq_struct *out, const fq_struct *P, uint32_t alpha,
   b_theta4_action(v[1], T->null, alpha, 0, zeta, T);
   if (!b_theta4_scale_factor(scale, v[0], v[1], T))
     goto done;
-  if (!fq_sqrt(s, scale, T->field)) {
+  if (!root_fq_sqrt(s, scale, T->field)) {
     status = -2;
     goto done;
   }
-  if (!fq_sqrt(lambda, s, T->field)) {
+  if (!root_fq_sqrt(lambda, s, T->field)) {
     fq_neg(s, s, T->field);
-    if (!fq_sqrt(lambda, s, T->field)) {
+    if (!root_fq_sqrt(lambda, s, T->field)) {
       status = -2;
       goto done;
     }
@@ -664,7 +687,7 @@ int b_theta4_good_coset2(fq_struct *out, const fq_struct *PQ,
   b_theta4_action(v[1], Q, alpha, 0, zeta, T);
   if (!b_theta4_scale_factor(scale, v[0], v[1], T))
     goto done;
-  if (!fq_sqrt(lambda, scale, T->field)) {
+  if (!root_fq_sqrt(lambda, scale, T->field)) {
     status = -2;
     goto done;
   }

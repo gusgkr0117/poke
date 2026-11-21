@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-/* Shared, checked PKE measurement code. BENCH_INKE_COMPLETE selects the
- * central-degree fast generation with same-q batches and exact-order PKE APIs.
- * A timeout invalidates the run; it never causes a fresh ideal to be drawn. */
+/* Timing driver for the POKE and PIKE comparison. */
 #ifndef _WIN32
 #define _POSIX_C_SOURCE 200809L
 #endif
@@ -28,19 +26,7 @@
 #include <time.h>
 #endif
 
-#if defined(BENCH_INKE)
-#include <inke.h>
-#if defined(BENCH_INKE_UNIFORM)
-#include <inke_keygen.h>
-#ifdef BENCH_INKE_COMPLETE
-#include "b-complete-keygen.h"
-#endif
-#endif
-typedef inke_sk_t secret_key;
-typedef inke_pk_t public_key;
-typedef inke_ct_t ciphertext;
-#define SCHEME_NAME "INKE"
-#elif defined(BENCH_POKE)
+#if defined(BENCH_POKE)
 #include <poke.h>
 typedef poke_sk_t secret_key;
 typedef poke_pk_t public_key;
@@ -59,16 +45,7 @@ typedef pike_ct_t ciphertext;
 
 extern const uint64_t p[NWORDS_FIELD];
 
-#if defined(BENCH_INKE_COMPLETE)
-#define IMPLEMENTATION_NAME "central_fast_same_q"
-static b_complete_public complete_public;
-static double public_setup_seconds;
-static unsigned long complete_mixed_cap=1000000;
-#elif defined(BENCH_INKE_UNIFORM)
-#define IMPLEMENTATION_NAME "uniform_ideal_mixed_conversion"
-#else
 #define IMPLEMENTATION_NAME "upstream_heuristic"
-#endif
 
 typedef struct {
     unsigned long windows, prime_candidates, norm_candidates, unit_candidates;
@@ -139,67 +116,6 @@ static double monotonic_seconds(void)
 static int checked_keygen(secret_key *sk,public_key *pk,double deadline,
     keygen_statistics *statistics)
 {
-#ifdef BENCH_INKE_COMPLETE
-    b_complete_keygen ctx={0};
-    if(b_complete_keygen_init(&ctx,&complete_public,complete_mixed_cap,200000,20000,1024)!=INKE_SAMPLE_OK)return 0;
-    unsigned long product_before=complete_public.product.calls;int status;
-    do {
-        ++statistics->windows;status=b_complete_keygen_step(sk,pk,&ctx,NULL,NULL);
-        if(monotonic_seconds()>deadline){
-            fprintf(stderr,"Keygen time budget exceeded: phase=%d stage=%d; run invalid, original q/ideal not replaced.\n",ctx.key.phase,ctx.key.last_stage);
-            status=INKE_SAMPLE_INVALID;break;
-        }
-        if(status==INKE_SAMPLE_RETRY){fprintf(stderr,"Keygen retry: window=%lu phase=%d stage=%d; retaining original q and any committed receiver map.\n",statistics->windows,ctx.key.phase,ctx.key.last_stage);fflush(stderr);}
-    }while(status==INKE_SAMPLE_RETRY);
-    statistics->prime_candidates=ctx.key.sampling.prime_candidates;
-    statistics->norm_candidates=ctx.key.sampling.norm_candidates;
-    statistics->unit_candidates=ctx.key.sampling.unit_candidates;
-    statistics->mixed_candidates=ctx.key.mixed.attempts;
-    statistics->witnesses=ctx.key.mixed_witnesses;
-    statistics->conversion_failures=ctx.key.mixed_failures+ctx.key.gaussian_failures;
-    statistics->kani_failures=ctx.key.finish_failures;
-    statistics->gaussian_attempts=ctx.key.gaussian_attempts;
-    statistics->general_attempts=ctx.key.fallback_attempts;
-    statistics->product_fallbacks=complete_public.product.calls-product_before;
-    statistics->product_steps=ctx.key.has_conversion?ctx.key.conversion.product_steps:0;
-    statistics->conversion_origin=ctx.key.conversion_origin;
-    statistics->fast_candidates=ctx.fast_counts.norm_candidates;
-    statistics->fast_witnesses=ctx.fast_counts.witnesses;
-    statistics->fast_conversion_failures=ctx.fast_counts.conversion_failures;
-    statistics->fast_guard_misses=ctx.fast_counts.guard_misses;
-    statistics->fast_interval_misses=ctx.fast_counts.interval_misses;
-    if(status!=INKE_SAMPLE_OK)fprintf(stderr,"Fast Keygen failed: status=%d phase=%d stage=%d; original q and committed map retained.\n",status,ctx.key.phase,ctx.key.last_stage);
-    b_complete_keygen_clear(&ctx);return status==INKE_SAMPLE_OK;
-#elif defined(BENCH_INKE_UNIFORM)
-    inke_keygen_context ctx;
-    inke_keygen_init(&ctx);
-    int status;
-    do {
-        ++statistics->windows;
-        status=inke_keygen_uniform(sk,pk,&ctx,100000);
-        if (monotonic_seconds()>deadline) {
-            fprintf(stderr,"Keygen time budget exceeded: stage=%d windows=%lu witnesses=%lu; run invalid, input not replaced.\n",
-                ctx.last_stage,statistics->windows,ctx.witnesses);
-            status=INKE_SAMPLE_INVALID;
-            break;
-        }
-        if (status==INKE_SAMPLE_RETRY) {
-            fprintf(stderr,"Keygen retry: window=%lu stage=%d candidates=%lu witnesses=%lu; retaining context.\n",
-                statistics->windows,ctx.last_stage,ctx.mixed.attempts,ctx.witnesses);
-            fflush(stderr);
-        }
-    } while (status==INKE_SAMPLE_RETRY);
-    statistics->prime_candidates=ctx.sampling.prime_candidates;
-    statistics->norm_candidates=ctx.sampling.norm_candidates;
-    statistics->unit_candidates=ctx.sampling.unit_candidates;
-    statistics->mixed_candidates=ctx.mixed.attempts;
-    statistics->witnesses=ctx.witnesses;
-    statistics->conversion_failures=ctx.conversion_failures;
-    statistics->kani_failures=ctx.kani_failures;
-    statistics->product_steps=ctx.product_steps;
-    inke_keygen_clear(&ctx);
-    return status==INKE_SAMPLE_OK;
-#else
     (void)statistics;
     int status=keygen(sk,pk);
     if (monotonic_seconds()>deadline) {
@@ -207,27 +123,13 @@ static int checked_keygen(secret_key *sk,public_key *pk,double deadline,
         return 0;
     }
     return status==1;
-#endif
 }
 
 static void print_metadata(long loops,double budget)
 {
     int affinity_cpu=-1;
     int active_five_exponent=POWER_OF_5;
-#if defined(BENCH_INKE_UNIFORM) && defined(INKE_MANUSCRIPT_PARAMETERS)
-    /* The inherited header retains a placeholder for unused 5-torsion. */
-    active_five_exponent=0;
-#endif
     unsigned int public_two_exponent=0;
-#ifdef BENCH_INKE_UNIFORM
-    inke_keygen_context parameter_context;
-    inke_keygen_init(&parameter_context);
-    public_two_exponent=parameter_context.a;
-    inke_keygen_clear(&parameter_context);
-#ifdef BENCH_INKE_COMPLETE
-    complete_mixed_cap=public_two_exponent>=512?5000000:1000000;
-#endif
-#endif
 #ifdef _WIN32
     DWORD_PTR allowed,system;
     if (!GetProcessAffinityMask(GetCurrentProcess(),&allowed,&system) || !allowed) {
@@ -273,12 +175,6 @@ int main(int argc, char **argv)
     double budget=argc==3?strtod(argv[2],&end):3600;
     if (errno || (argc==3 && (!*argv[2] || *end)) || !(budget>0 && budget<=86400)) return 2;
     print_metadata(loops,budget);
-#ifdef BENCH_INKE_COMPLETE
-    double setup_start=monotonic_seconds();
-    if(b_complete_public_init(&complete_public,root_system_random,NULL,10000)!=INKE_SAMPLE_OK){fputs("Public field/plan setup failed\n",stderr);return 1;}
-    public_setup_seconds=monotonic_seconds()-setup_start;
-    fprintf(stderr,"BENCH_PUBLIC_SETUP {\"milliseconds\":%.9f,\"fast_candidate_batch\":%lu,\"receiver_distribution\":\"central_q_opposite_parity_fast\",\"receiver_ideal_fallback\":false,\"flint_version\":\"%s\",\"scope\":\"per-parameter field and complete 2D quotient setup; excluded from per-key timer\"}\n",1000*public_setup_seconds,B_FAST_DEFAULT_TRIALS,FLINT_VERSION);fflush(stderr);
-#endif
     puts("scheme,parameter_set,implementation,prime_bits,iteration,keygen_ms,encrypt_ms,decrypt_ms,keygen_tsc_ticks,encrypt_tsc_ticks,decrypt_tsc_ticks,cpu_migration,keygen_windows,prime_candidates,norm_candidates,unit_candidates,mixed_candidates,witnesses,conversion_failures,kani_failures,product_steps,conversion_origin,gaussian_attempts,general_attempts,keygen_product_fallbacks,decrypt_product_fallbacks,fast_candidates,fast_witnesses,fast_conversion_failures,fast_guard_misses,fast_interval_misses");
     fflush(stdout);
     /* One complete, checked warm-up; all measured iterations are also checked. */
@@ -297,29 +193,15 @@ int main(int argc, char **argv)
         if (key_ok != 1) { fputs("Keygen failed\n", stderr); return 1; }
         double encrypt_start=monotonic_seconds();
         timestamp enc_start=serialized_timestamp();
-#ifdef BENCH_INKE_UNIFORM
-        int enc_ok=inke_encrypt_uniform(&ct,&pk,message,NULL,0);
-#else
         int enc_ok = encrypt(&ct, &pk, message, sizeof(message), NULL, 0);
-#endif
         timestamp enc_end=serialized_timestamp();
         double after_encrypt = monotonic_seconds();
         if (enc_ok != 1) { fputs("Encryption failed\n", stderr); return 1; }
         double decrypt_start=monotonic_seconds();
         timestamp dec_start=serialized_timestamp();
         unsigned long decrypt_fallbacks=0;
-#ifdef BENCH_INKE_COMPLETE
-        unsigned long calls_before=complete_public.product.calls;int decrypt_stage;
-        int dec_ok=b_complete_decrypt(recovered,&ct,&sk,&complete_public,&decrypt_stage);
-        decrypt_fallbacks=complete_public.product.calls-calls_before;
-        size_t recovered_length=sizeof(message);
-#elif defined(BENCH_INKE_UNIFORM)
-        int dec_ok=inke_decrypt_uniform(recovered,&ct,&sk);
-        size_t recovered_length=sizeof(message);
-#else
         size_t recovered_length=0;
         int dec_ok = decrypt(recovered, &recovered_length, &ct, &sk);
-#endif
         timestamp dec_end=serialized_timestamp();
         double after_decrypt = monotonic_seconds();
         if (dec_ok != 1 || recovered_length != sizeof(message) ||
@@ -347,8 +229,5 @@ int main(int argc, char **argv)
         fprintf(stderr,"Verified iteration %ld of %ld\n",iteration,loops);
         fflush(stderr);
     }
-#ifdef BENCH_INKE_COMPLETE
-    b_complete_public_clear(&complete_public);
-#endif
     return 0;
 }

@@ -98,11 +98,15 @@ int root_theta4_compatibility_apply(fq_struct *out,const fq_struct *in,unsigned 
  }return 1;
 }
 static void fourier(fq_struct *out,const fq_struct *in,unsigned axis,unsigned g,int inverse,const fq_struct *powers,const fq_ctx_t f){
- size_t n=(size_t)1<<(2*g);unsigned shift=2*axis;size_t mask=(size_t)3<<shift;fq_t v,inv4;fq_init(v,f);fq_init(inv4,f);fq_set_ui(inv4,4,f);fq_inv(inv4,inv4,f);
+ size_t n=(size_t)1<<(2*g);unsigned shift=2*axis;size_t mask=(size_t)3<<shift;fq_t v;fq_init(v,f);
  for(size_t k=0;k<n;k++){unsigned digit=(k>>shift)&3u;fq_zero(out+k,f);for(unsigned j=0;j<4;j++){
   unsigned exponent=(inverse?8u-2u*digit*j:2u*digit*j)&7u;fq_mul(v,in+((k&~mask)|((size_t)j<<shift)),powers+exponent,f);fq_add(out+k,out+k,v,f);
- }if(inverse)fq_mul(out+k,out+k,inv4,f);}
- fq_clear(inv4,f);fq_clear(v,f);
+ }
+ if(inverse){
+  fp_mul(&out[k].re,&out[k].re,&f->inverse_four);
+  fp_mul(&out[k].im,&out[k].im,&f->inverse_four);
+ }}
+ fq_clear(v,f);
 }
 static void lower(fq_struct *out,const fq_struct *in,unsigned g,int i,int j,int c,const fq_struct *powers,const fq_ctx_t f){
  size_t n=(size_t)1<<(2*g);for(size_t k=0;k<n;k++){int x=(int)((k>>(2*i))&3u),y=(int)((k>>(2*j))&3u);int exponent=-(i==j?c*x*x:2*c*x*y);exponent=(exponent%8+8)%8;fq_mul(out+k,in+k,powers+exponent,f);}

@@ -63,7 +63,6 @@ extern const uint64_t p[NWORDS_FIELD];
 #define IMPLEMENTATION_NAME "central_fast_same_q"
 static b_complete_public complete_public;
 static double public_setup_seconds;
-static unsigned long complete_mixed_cap=1000000;
 #elif defined(BENCH_INKE_UNIFORM)
 #define IMPLEMENTATION_NAME "uniform_ideal_mixed_conversion"
 #else
@@ -141,28 +140,21 @@ static int checked_keygen(secret_key *sk,public_key *pk,double deadline,
 {
 #ifdef BENCH_INKE_COMPLETE
     b_complete_keygen ctx={0};
-    if(b_complete_keygen_init(&ctx,&complete_public,complete_mixed_cap,200000,20000,1024)!=INKE_SAMPLE_OK)return 0;
+    if(b_complete_keygen_init(&ctx,&complete_public,0,0,0,0)!=INKE_SAMPLE_OK)return 0;
     unsigned long product_before=complete_public.product.calls;int status;
     do {
         ++statistics->windows;status=b_complete_keygen_step(sk,pk,&ctx,NULL,NULL);
         if(monotonic_seconds()>deadline){
-            fprintf(stderr,"Keygen time budget exceeded: phase=%d stage=%d; run invalid, original q/ideal not replaced.\n",ctx.key.phase,ctx.key.last_stage);
+            fprintf(stderr,"Keygen time budget exceeded: phase=%d stage=%d; run invalid, original q retained.\n",ctx.key.phase,ctx.key.last_stage);
             status=INKE_SAMPLE_INVALID;break;
         }
         if(status==INKE_SAMPLE_RETRY){fprintf(stderr,"Keygen retry: window=%lu phase=%d stage=%d; retaining original q and any committed receiver map.\n",statistics->windows,ctx.key.phase,ctx.key.last_stage);fflush(stderr);}
     }while(status==INKE_SAMPLE_RETRY);
-    statistics->prime_candidates=ctx.key.sampling.prime_candidates;
-    statistics->norm_candidates=ctx.key.sampling.norm_candidates;
-    statistics->unit_candidates=ctx.key.sampling.unit_candidates;
-    statistics->mixed_candidates=ctx.key.mixed.attempts;
-    statistics->witnesses=ctx.key.mixed_witnesses;
-    statistics->conversion_failures=ctx.key.mixed_failures+ctx.key.gaussian_failures;
     statistics->kani_failures=ctx.key.finish_failures;
-    statistics->gaussian_attempts=ctx.key.gaussian_attempts;
-    statistics->general_attempts=ctx.key.fallback_attempts;
     statistics->product_fallbacks=complete_public.product.calls-product_before;
     statistics->product_steps=ctx.key.has_conversion?ctx.key.conversion.product_steps:0;
-    statistics->conversion_origin=ctx.key.conversion_origin;
+    /* Origin 4 denotes the norm-search receiver in the archived CSV format. */
+    statistics->conversion_origin=ctx.key.has_conversion?4:0;
     statistics->fast_candidates=ctx.fast_counts.norm_candidates;
     statistics->fast_witnesses=ctx.fast_counts.witnesses;
     statistics->fast_conversion_failures=ctx.fast_counts.conversion_failures;
@@ -225,9 +217,6 @@ static void print_metadata(long loops,double budget)
     const unsigned int kani_exponent=parameter_context.a;
     public_two_exponent=kani_exponent+2;
     inke_keygen_clear(&parameter_context);
-#ifdef BENCH_INKE_COMPLETE
-    complete_mixed_cap=public_two_exponent>=512?5000000:1000000;
-#endif
 #endif
 #ifdef _WIN32
     DWORD_PTR allowed,system;
@@ -281,9 +270,9 @@ int main(int argc, char **argv)
     print_metadata(loops,budget);
 #ifdef BENCH_INKE_COMPLETE
     double setup_start=monotonic_seconds();
-    if(b_complete_public_init(&complete_public,root_system_random,NULL,10000)!=INKE_SAMPLE_OK){fputs("Public field/plan setup failed\n",stderr);return 1;}
+    if(b_complete_public_init(&complete_public,root_system_random,NULL,10000)!=INKE_SAMPLE_OK){fputs("Public field setup failed\n",stderr);return 1;}
     public_setup_seconds=monotonic_seconds()-setup_start;
-    fprintf(stderr,"BENCH_PUBLIC_SETUP {\"milliseconds\":%.9f,\"fast_candidate_batch\":%lu,\"receiver_distribution\":\"central_q_opposite_parity_fast\",\"receiver_ideal_fallback\":false,\"flint_version\":\"%s\",\"scope\":\"per-parameter field and complete 2D quotient setup; excluded from per-key timer\"}\n",1000*public_setup_seconds,B_FAST_DEFAULT_TRIALS,FLINT_VERSION);fflush(stderr);
+    fprintf(stderr,"BENCH_PUBLIC_SETUP {\"milliseconds\":%.9f,\"fast_candidate_batch\":%lu,\"receiver_distribution\":\"central_q_opposite_parity_fast\",\"receiver_ideal_fallback\":false,\"field_backend\":\"native_fp2\",\"scope\":\"per-parameter field and complete 2D quotient setup; excluded from per-key timer\"}\n",1000*public_setup_seconds,B_FAST_DEFAULT_TRIALS);fflush(stderr);
 #endif
     puts("scheme,parameter_set,implementation,prime_bits,iteration,keygen_ms,encrypt_ms,decrypt_ms,keygen_tsc_ticks,encrypt_tsc_ticks,decrypt_tsc_ticks,cpu_migration,keygen_windows,prime_candidates,norm_candidates,unit_candidates,mixed_candidates,witnesses,conversion_failures,kani_failures,product_steps,conversion_origin,gaussian_attempts,general_attempts,keygen_product_fallbacks,decrypt_product_fallbacks,fast_candidates,fast_witnesses,fast_conversion_failures,fast_guard_misses,fast_interval_misses");
     fflush(stdout);

@@ -14,11 +14,6 @@ option(INKE_MANUSCRIPT_PARAMETERS "Use the manuscript's primes and bases for rev
 option(INKE_COMPLETE_BENCHMARKS "Build the INKE, POKE and PIKE benchmarks used for the paper" OFF)
 if (INKE_COMPLETE_BENCHMARKS)
     set(INKE_MANUSCRIPT_PARAMETERS ON)
-    find_path(FLINT_INCLUDE_DIR NAMES flint/flint.h)
-    find_library(FLINT_LIBRARY NAMES flint)
-    if (NOT FLINT_INCLUDE_DIR OR NOT FLINT_LIBRARY)
-        message(FATAL_ERROR "The INKE benchmark requires FLINT. Set FLINT_INCLUDE_DIR and FLINT_LIBRARY to your installation.")
-    endif()
 endif()
 
 if (NOT DEFINED POKE_BUILD_TYPE)

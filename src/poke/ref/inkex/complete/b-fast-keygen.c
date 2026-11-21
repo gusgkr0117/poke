@@ -13,7 +13,7 @@ static void erase_bytes(unsigned char *p,size_t n){
 /* Exact interval rejection sampling; its expected number of trials is <2.
  * Random-source failure is reported without changing the sampled q. */
 static int interval(ibz_t *out,const ibz_t *lo,const ibz_t *hi,
-    b_fast_counts *counts,a_ec_rng rng,void *context){
+    b_fast_counts *counts,root_random_bytes rng,void *context){
     if(mpz_cmp(*lo,*hi)>0)return INKE_SAMPLE_INVALID;
     ibz_t width,x;ibz_init(&width);ibz_init(&x);mpz_sub(width,*hi,*lo);
     int status=INKE_SAMPLE_RETRY;
@@ -31,7 +31,7 @@ static int interval(ibz_t *out,const ibz_t *lo,const ibz_t *hi,
 done:ibz_finalize(&x);ibz_finalize(&width);return status;
 }
 static int two_squares(ibz_t *x,ibz_t *y,const ibz_t *r,b_fast_counts *counts,
-    a_ec_rng rng,void *context){
+    root_random_bytes rng,void *context){
     if(mpz_cmp_ui(*r,2)==0){mpz_set_ui(*x,1);mpz_set_ui(*y,1);return INKE_SAMPLE_OK;}
     if(mpz_cmp_ui(*r,2)<0||mpz_fdiv_ui(*r,4)!=1)return INKE_SAMPLE_RETRY;
     ibz_t hi,e,w,t,u,v,s;ibz_init(&hi);ibz_init(&e);ibz_init(&w);
@@ -66,7 +66,7 @@ static int exact_theta(const quat_alg_elem_t *theta,const ibz_t *target){
     ibz_finalize(&exact);ibq_finalize(&n);return ok;
 }
 int b_fast_sample_theta(quat_alg_elem_t *out,const ibz_t *target,
-    unsigned long limit,b_fast_counts *counts,a_ec_rng rng,void *context){
+    unsigned long limit,b_fast_counts *counts,root_random_bytes rng,void *context){
     if(!out||!counts||!rng||mpz_sgn(*target)<=0||mpz_even_p(*target)||
        mpz_fdiv_ui(QUATALG_PINFTY.p,4)!=3)return INKE_SAMPLE_INVALID;
     if(!limit||counts->norm_candidates>=limit||mpz_cmp(*target,QUATALG_PINFTY.p)<=0)
@@ -150,7 +150,7 @@ int b_fast_convert_theta(inke_conversion_result *out,const quat_alg_elem_t *thet
 done:ibz_finalize(&inverse);ibz_finalize(&target);return status;
 }
 int b_fast_receiver(inke_conversion_result *out,const ibz_t *q,unsigned int a,
-    unsigned long limit,b_fast_counts *counts,a_ec_rng rng,void *context,int *stage){
+    unsigned long limit,b_fast_counts *counts,root_random_bytes rng,void *context,int *stage){
     if(stage)*stage=1;
     if(!out||!counts||!rng||!inke_q_is_admissible(q,a))
         return INKE_SAMPLE_INVALID;

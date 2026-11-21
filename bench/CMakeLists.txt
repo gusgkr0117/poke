@@ -3,18 +3,11 @@ if(INKE_COMPLETE_BENCHMARKS)
     set(complete_dir "${inke_dir}/complete")
     set(complete_sources)
     foreach(source
-            root-extension.c root-field-embedding.c a-extension-ec.c
-            a-extension-quaternion.c a-extension-pairing.c a-kani-two-kernel.c
-            root-theta-fast-add.c b-theta4-two.c b-theta4-odd.c root-ec-theta4.c
+            root-extension.c a-extension-ec.c
+            root-theta-fast-add.c b-theta4-two.c root-ec-theta4.c
             root-theta-symplectic.c root-theta-label.c root-theta-factor.c
-            root-kani-factor.c root-tate-projector.c root-quaternion-splitting.c
-            root-ec-tate.c root-ec-halving.c a-theta-basechange.c a-theta-multifield.c
-            b-theta-balanced.c a-theta-oddbasechange.c a-theta-oddfields.c
-            a-theta-oddbalanced.c a-kani-fullchain.c a-kani-geometry.c
-            root-poke-field-bridge.c b-gaussian-preparation.c b-poke-basis.c
-            b-gaussian-convert.c a-general-kernel-lift.c root-theta-product.c
-            b-product-fallback.c a-clapoti-preparation.c a-clapoti-convert.c
-            b-uniform-keygen.c b-fast-keygen.c)
+            a-theta-multifield.c b-theta-balanced.c root-poke-field-bridge.c
+            b-poke-basis.c root-theta-product.c b-product-fallback.c b-fast-keygen.c)
         list(APPEND complete_sources "${complete_dir}/${source}")
     endforeach()
 endif()
@@ -42,24 +35,34 @@ foreach(VARIANT ${SVARIANT_S})
     endif()
     if(INKE_COMPLETE_BENCHMARKS AND SCHEME STREQUAL "inke")
         set(benchmark compare_complete_${VARIANT})
-        add_executable(${benchmark} comparison.c "${inke_dir}/inke.c"
-            "${inke_dir}/inke_keygen.c" ${complete_sources})
+        set(complete_lib complete_${VARIANT})
+        add_library(${complete_lib} STATIC "${inke_dir}/inke.c" ${complete_sources})
+        add_executable(${benchmark} comparison.c "${inke_dir}/inke_keygen.c")
         target_compile_definitions(${benchmark} PRIVATE
             BENCH_INKE BENCH_INKE_UNIFORM BENCH_INKE_COMPLETE BENCH_VARIANT_TOKEN=${VARIANT})
-        target_include_directories(${benchmark} PRIVATE
-            ${GMP_INCLUDE} ${FLINT_INCLUDE_DIR} ${complete_dir} ${inke_dir}
+        target_include_directories(${complete_lib} PUBLIC
+            ${GMP_INCLUDE} ${complete_dir} ${inke_dir}
             ${INC_POKE} ${INC_ID2ISO} ${INC_QUATERNION} ${INC_INTBIG} ${INC_EC}
             ${INC_GF} ${INC_COMMON} ${INC_PUBLIC} ${INC_HD} ${PROJECT_SOURCE_DIR}/src/hd/ref/hdx
             ${INC_KLPT} ${INC_PRECOMP_${VARIANT_UPPER}})
         if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+            target_compile_options(${complete_lib} PRIVATE -Wall -Wextra)
             target_compile_options(${benchmark} PRIVATE -Wall -Wextra)
         endif()
-        target_link_libraries(${benchmark} PRIVATE
+        target_link_libraries(${complete_lib} PUBLIC
             ${LIB_POKE_${VARIANT_UPPER}} ${LIB_ID2ISO_${VARIANT_UPPER}} ${LIB_HD_${VARIANT_UPPER}}
             ${LIB_QUATERNION} poke_common_sys ${LIB_EC_${VARIANT_UPPER}} ${LIB_PRECOMP_${VARIANT_UPPER}}
-            ${LIB_GF_${VARIANT_UPPER}} ${LIB_KLPT_${VARIANT_UPPER}} ${LIB_INTBIG} ${GMP} ${FLINT_LIBRARY})
+            ${LIB_GF_${VARIANT_UPPER}} ${LIB_KLPT_${VARIANT_UPPER}} ${LIB_INTBIG} ${GMP})
         if(WIN32)
-            target_link_libraries(${benchmark} PRIVATE bcrypt advapi32 kernel32 user32)
+            target_link_libraries(${complete_lib} PUBLIC bcrypt advapi32 kernel32 user32)
+        endif()
+        target_link_libraries(${benchmark} PRIVATE ${complete_lib})
+        if(ENABLE_TESTS)
+            set(quotient_test test_complete_quotient_${VARIANT})
+            add_executable(${quotient_test} test_complete_quotient.c "${inke_dir}/inke_keygen.c")
+            target_compile_definitions(${quotient_test} PRIVATE INKE_TEST_FORCE_PRODUCT_FALLBACK)
+            target_link_libraries(${quotient_test} PRIVATE ${complete_lib})
+            add_test(NAME ${quotient_test} COMMAND ${quotient_test})
         endif()
     endif()
     if(SCHEME STREQUAL "inke")
