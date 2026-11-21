@@ -1,6 +1,8 @@
 set(SOURCE_FILES_HD_GENERIC_REF
     ${HDX_DIR}/hd.c
     ${HDX_DIR}/theta_structure.c 
+    ${HDX_DIR}/theta_isogeny3.c
+    ${HDX_DIR}/inke_chain.c
     ${HDX_DIR}/theta_isogenies.c 
 )
 

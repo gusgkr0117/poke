@@ -33,6 +33,20 @@ void gluing_comput(theta_gluing_t *out,
                    const theta_couple_jac_point_t *xyT1,
                    const theta_couple_jac_point_t *xyT2);
 
+/* Reject a chart with a zero inversion denominator or without the common
+ * squared-theta zero required by these formulas. On failure return 0 and
+ * leave out unchanged. The caller must still supply a valid gluing kernel. */
+int gluing_comput_checked(theta_gluing_t *out, theta_couple_curve_t *E12,
+                         const theta_couple_jac_point_t *xyT1,
+                         const theta_couple_jac_point_t *xyT2);
+
+/* Existing gluing evaluation routines, also used by mixed-degree chains. */
+void gluing_eval_point_special_case(theta_point_t *image,
+    const theta_couple_point_t *P, const theta_gluing_t *phi);
+void gluing_eval_point_no_help(theta_point_t *image,
+    const theta_couple_jac_point_t *P, const theta_couple_curve_t *E12,
+    const theta_gluing_t *phi);
+
 /**
  * @brief Evaluate a gluing isogeny from an elliptic product on a basis
  *

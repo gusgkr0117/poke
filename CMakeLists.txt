@@ -10,6 +10,16 @@ option(ENABLE_STRICT "Build with strict compile options." OFF)
 option(ENABLE_TESTS  "Enable compilation of tests." ON)
 option(ENABLE_CT_TESTING  "Enable compilation for constant time testing." OFF)
 option(ENABLE_GMP_BUILD "Download and build external version of GMP" OFF)
+option(INKE_MANUSCRIPT_PARAMETERS "Use the manuscript's primes and bases for revised INKE" OFF)
+option(INKE_COMPLETE_BENCHMARKS "Build the INKE, POKE and PIKE benchmarks used for the paper" OFF)
+if (INKE_COMPLETE_BENCHMARKS)
+    set(INKE_MANUSCRIPT_PARAMETERS ON)
+    find_path(FLINT_INCLUDE_DIR NAMES flint/flint.h)
+    find_library(FLINT_LIBRARY NAMES flint)
+    if (NOT FLINT_INCLUDE_DIR OR NOT FLINT_LIBRARY)
+        message(FATAL_ERROR "The INKE benchmark requires FLINT. Set FLINT_INCLUDE_DIR and FLINT_LIBRARY to your installation.")
+    endif()
+endif()
 
 if (NOT DEFINED POKE_BUILD_TYPE)
 	SET(POKE_BUILD_TYPE "ref")
@@ -27,4 +37,14 @@ include(.cmake/sanitizers.cmake)
 include(.cmake/target.cmake)
 include(.cmake/gmpconfig.cmake)
 
+# The high security levels use large automatic arrays. Give every Windows
+# executable the same stack reservation (the MinGW default is only 1 MiB).
+if (MINGW)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--stack,16777216")
+endif()
+
 add_subdirectory(src)
+
+if (ENABLE_TESTS OR INKE_COMPLETE_BENCHMARKS)
+    add_subdirectory(bench)
+endif()

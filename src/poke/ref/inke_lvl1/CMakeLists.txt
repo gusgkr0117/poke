@@ -1,6 +1,9 @@
-add_library(${LIB_POKE_${SVARIANT_UPPER}} ${INKEX_DIR}/inke.c)
+add_library(${LIB_POKE_${SVARIANT_UPPER}} ${INKEX_DIR}/inke_legacy.c ${INKEX_DIR}/inke_keygen.c ${INKEX_DIR}/inke_curve_model.c)
+target_include_directories(${LIB_POKE_${SVARIANT_UPPER}} PRIVATE ${PROJECT_SOURCE_DIR}/src/hd/ref/hdx)
 target_include_directories(${LIB_POKE_${SVARIANT_UPPER}} PRIVATE ${INC_GF} ${INC_COMMON} ${INC_PRECOMP_${SVARIANT_UPPER}} ${INC_HD} ${INC_EC} ${INC_INTBIG} ${INC_PUBLIC} ${INC_QUATERNION} ${INC_KLPT} ${INC_ID2ISO} ${INC_POKE} ${INC_POKE_${SVARIANT_UPPER}})
 target_link_libraries(${LIB_POKE_${SVARIANT_UPPER}} PRIVATE ${LIB_EC_${SVARIANT_UPPER}} ${LIB_HD_${SVARIANT_UPPER}} ${LIB_INTBIG} ${LIB_KLPT_${SVARIANT_UPPER}} ${LIB_QUATERNION} ${LIB_ID2ISO_${SVARIANT_UPPER}})
 target_compile_options(${LIB_POKE_${SVARIANT_UPPER}} PRIVATE ${C_OPT_FLAGS})
 
-add_subdirectory(test)
+if(NOT INKE_MANUSCRIPT_PARAMETERS)
+    add_subdirectory(test)
+endif()

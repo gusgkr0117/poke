@@ -1,8 +1,13 @@
+if(INKE_MANUSCRIPT_PARAMETERS)
+    set(INKE_FIELD_SOURCE ${GFX_DIR}/fp_montgomery_generic.c)
+else()
+    set(INKE_FIELD_SOURCE fp_p583.c)
+endif()
 set(SOURCE_FILES_GF_${SVARIANT_UPPER}_REF
     ${GFX_DIR}/fp.c
     ${GFX_DIR}/fp2.c
     ${GFX_DIR}/mp.c
-    fp_p583.c
+    ${INKE_FIELD_SOURCE}
 )
 
 add_library(${LIB_GF_${SVARIANT_UPPER}} ${SOURCE_FILES_GF_${SVARIANT_UPPER}_REF})

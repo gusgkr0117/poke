@@ -639,18 +639,24 @@ test_jac_order_twof(const jac_point_t *P, const ec_curve_t *E, int t)
 static int
 test_point_order_threef(const ec_point_t *P, const ec_curve_t *E, int t)
 {
-    ec_point_t test;
+    ec_point_t test, A24;
     test = *P;
     digit_t three[NWORDS_ORDER] = { 0 };
     three[0] = 3;
-    if (fp2_is_zero(&test.z))
+    if (t < 1 || fp2_is_zero(&test.z))
         return 0;
+    /* Multiplication by 3 needs two ladder bits, not a full BITS-bit
+     * scalar multiplication.  The checked condition remains exactly
+     * [3^(t-1)]P != O and [3^t]P = O. */
+    fp2_add(&A24.z, &E->C, &E->C);
+    fp2_add(&A24.x, &E->A, &A24.z);
+    fp2_add(&A24.z, &A24.z, &A24.z);
     for (int i = 0; i < t - 1; i++) {
-        ec_mul(&test, E, three, &test);
+        xMULv2(&test, &test, three, 2, &A24);
     }
     if (fp2_is_zero(&test.z))
         return 0;
-    ec_mul(&test, E, three, &test);
+    xMULv2(&test, &test, three, 2, &A24);
     return (fp2_is_zero(&test.z));
 }
 

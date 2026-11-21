@@ -9,6 +9,9 @@ set(SOURCE_FILES_COMMON_SYS
 add_library(poke_common_sys ${SOURCE_FILES_COMMON_SYS})
 target_include_directories(poke_common_sys PRIVATE include ../../include)
 target_compile_options(poke_common_sys PUBLIC ${C_OPT_FLAGS})
+if (WIN32)
+    target_link_libraries(poke_common_sys PUBLIC advapi32)
+endif()
 
 set(SOURCE_FILES_COMMON_TEST 
     randombytes_ctrdrbg.c 

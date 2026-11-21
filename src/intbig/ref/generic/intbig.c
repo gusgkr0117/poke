@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <limits.h>
 
 // #define DEBUG_VERBOSE
 
@@ -394,7 +395,14 @@ ibz_is_even(const ibz_t *x)
 void
 ibz_set(ibz_t *i, int64_t x)
 {
+#if LONG_MAX < INT64_MAX
+    /* On 64-bit Windows, long is still 32 bits. */
+    uint64_t magnitude = x < 0 ? (uint64_t)(-(x + 1)) + 1 : (uint64_t)x;
+    mpz_import(*i, 1, 1, sizeof(magnitude), 0, 0, &magnitude);
+    if (x < 0) mpz_neg(*i, *i);
+#else
     mpz_set_si(*i, (signed long int)x);
+#endif
 }
 
 /** @brief set i to integer ontained in string when read as number in base
@@ -432,10 +440,28 @@ ibz_swap(ibz_t *a, ibz_t *b)
 int64_t
 ibz_get(const ibz_t *i)
 {
+#if LONG_MAX < INT64_MAX
+    /* Match a 64-bit signed-long conversion, including truncation of
+     * overflowing magnitudes and the exactly representable INT64_MIN. */
+    uint64_t magnitude = (uint64_t)mpz_getlimbn(*i, 0);
+#if GMP_NUMB_BITS < 64
+    magnitude |= (uint64_t)mpz_getlimbn(*i, 1) << GMP_NUMB_BITS;
+#endif
+    if (mpz_sgn(*i) < 0 && magnitude == (UINT64_C(1) << 63) &&
+        mpz_sizeinbase(*i, 2) == 64) return INT64_MIN;
+    int64_t low = (int64_t)(magnitude & INT64_MAX);
+    return mpz_sgn(*i) < 0 ? -low : low;
+#else
     return (int64_t)mpz_get_si(*i);
+#endif
 }
 
 int ibz_rand_interval_with_state(ibz_t *rand, const ibz_t *a, const ibz_t *b, shake256ctx *state) {
+    if (mpz_cmp(*a, *b) > 0) return 0;
+    if (mpz_cmp(*a, *b) == 0) {
+        mpz_set(*rand, *a);
+        return 1;
+    }
     mpz_t tmp, bmina;
     mpz_init(bmina);
     mpz_sub(bmina, *b, *a);
@@ -446,12 +472,15 @@ int ibz_rand_interval_with_state(ibz_t *rand, const ibz_t *a, const ibz_t *b, sh
     size_t sizeof_limb_bits = sizeof_limb * 8;
     size_t len_limbs = (len_bytes + sizeof_limb - 1) / sizeof_limb;
 
-    mp_limb_t mask = ((mp_limb_t)-1) >> (sizeof_limb_bits - (len_bits % sizeof_limb_bits));
+    size_t top_bits = len_bits % sizeof_limb_bits;
+    mp_limb_t mask = top_bits ? ((mp_limb_t)-1) >> (sizeof_limb_bits - top_bits)
+                              : (mp_limb_t)-1;
     size_t nblocks = len_bytes / SHAKE256_RATE;
     mp_limb_t r[len_limbs];
     uint8_t t[SHAKE256_RATE];
     
     do {
+        for (size_t i = 0; i < len_limbs; ++i) r[i] = 0;
         shake256_squeezeblocks((unsigned char*)r, nblocks, state);
         if (len_bytes % SHAKE256_RATE) {
             shake256_squeezeblocks(t, 1, state);
@@ -460,6 +489,9 @@ int ibz_rand_interval_with_state(ibz_t *rand, const ibz_t *a, const ibz_t *b, sh
             }
         }
 
+#ifdef TARGET_BIG_ENDIAN
+        for (size_t i = 0; i < len_limbs; ++i) r[i] = BSWAP_DIGIT(r[i]);
+#endif
         r[len_limbs - 1] &= mask;
         mpz_roinit_n(tmp, r, len_limbs);
         if (mpz_cmp(tmp, bmina) <= 0)
@@ -477,6 +509,11 @@ int ibz_rand_interval_with_state(ibz_t *rand, const ibz_t *a, const ibz_t *b, sh
 int
 ibz_rand_interval(ibz_t *rand, const ibz_t *a, const ibz_t *b)
 {
+    if (mpz_cmp(*a, *b) > 0) return 0;
+    if (mpz_cmp(*a, *b) == 0) {
+        mpz_set(*rand, *a);
+        return 1;
+    }
     // TODO: do it with a hash stream?
     int randret;
     int ret = 1;
@@ -491,10 +528,13 @@ ibz_rand_interval(ibz_t *rand, const ibz_t *a, const ibz_t *b)
     size_t sizeof_limb_bits = sizeof_limb * 8;
     size_t len_limbs = (len_bytes + sizeof_limb - 1) / sizeof_limb;
 
-    mp_limb_t mask = ((mp_limb_t)-1) >> (sizeof_limb_bits - (len_bits % sizeof_limb_bits));
+    size_t top_bits = len_bits % sizeof_limb_bits;
+    mp_limb_t mask = top_bits ? ((mp_limb_t)-1) >> (sizeof_limb_bits - top_bits)
+                              : (mp_limb_t)-1;
     mp_limb_t r[len_limbs];
 
     do {
+        for (size_t i = 0; i < len_limbs; ++i) r[i] = 0;
         randret = randombytes((unsigned char *)r, len_bytes);
         if (randret != 0) {
             ret = 0;
@@ -521,8 +561,10 @@ ibz_rand_interval_i(ibz_t *rand, int64_t a, int64_t b)
 {
     int ret = 1;
     mpz_t a_big, b_big;
-    mpz_init_set_si(a_big, a);
-    mpz_init_set_si(b_big, b);
+    ibz_init(&a_big);
+    ibz_init(&b_big);
+    ibz_set(&a_big, a);
+    ibz_set(&b_big, b);
     ret = ibz_rand_interval(rand, &a_big, &b_big);
     mpz_clear(a_big);
     mpz_clear(b_big);
@@ -532,13 +574,8 @@ ibz_rand_interval_i(ibz_t *rand, int64_t a, int64_t b)
 int
 ibz_rand_interval_minm_m(ibz_t *rand, int64_t m)
 {
-    int ret = 1;
-    ret = ibz_rand_interval_i(rand, 0, 2 * m);
-    if (ret != 1)
-        goto err;
-    mpz_sub_ui(*rand, *rand, (unsigned long int)m);
-err:
-    return ret;
+    if (m < 0) return 0;
+    return ibz_rand_interval_i(rand, -m, m);
 }
 
 /** @brief Bitsize of a.

@@ -1,0 +1,4 @@
+lvl = 1
+p = 0x1a5213fbe564ef2a188459576925bb8d489dbbaf78921dad274a8a062c914a0a4b7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+B = 3
+Cfactor = 1

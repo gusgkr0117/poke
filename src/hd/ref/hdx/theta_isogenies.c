@@ -172,11 +172,12 @@ base_change(theta_point_t *out, const theta_gluing_t *phi, const theta_couple_po
  * out : E1xE2 -> A of kernel [4](K1_8,K2_8)
  *
  */
-void
-gluing_comput(theta_gluing_t *out,
+static int
+gluing_comput_internal(theta_gluing_t *out,
               theta_couple_curve_t *E12,
               const theta_couple_jac_point_t *xyK1_8,
-              const theta_couple_jac_point_t *xyK2_8
+              const theta_couple_jac_point_t *xyK2_8,
+              int checked
               // const theta_couple_point_t *K1_8,const theta_couple_point_t *K2_8, const
               // theta_couple_point_t *K1m2_8
 )
@@ -246,6 +247,9 @@ gluing_comput(theta_gluing_t *out,
     fp2_mul(&temp_fp, &out->K2_4.P2.z, &P22.x);
     fp2_sub(&t[7], &t[7], &temp_fp);
 
+    if (checked)
+        for (int j = 0; j < 8; ++j)
+            if (fp2_is_zero(&t[j])) return 0;
     fp2_batched_inv(t, 8);
 
     // Mij10 = uij xij /detij - xij/zij
@@ -411,6 +415,12 @@ gluing_comput(theta_gluing_t *out,
         out->zero_idx = 3;
     }
 
+    if (checked) {
+        fp2_t a1, a2;
+        choose_index_theta_point(&a1, out->zero_idx, &TT1);
+        choose_index_theta_point(&a2, out->zero_idx, &TT2);
+        if (!fp2_is_zero(&a1) || !fp2_is_zero(&a2)) return 0;
+    }
 #ifndef NDEBUG
     fp2_t a1, a2;
     choose_index_theta_point(&a1, out->zero_idx, &TT1);
@@ -435,6 +445,9 @@ gluing_comput(theta_gluing_t *out,
     fp2_copy(&t_inv[1], &t2);
     fp2_copy(&t_inv[2], &t3);
     fp2_copy(&t_inv[3], &t4);
+    if (checked)
+        for (int j = 0; j < 4; ++j)
+            if (fp2_is_zero(&t_inv[j])) return 0;
     fp2_batched_inv(t_inv, 4);
     fp2_copy(&t001, &t_inv[0]);
     fp2_copy(&t002, &t_inv[1]);
@@ -465,6 +478,30 @@ gluing_comput(theta_gluing_t *out,
 
     // compute the final codomain
     hadamard(&out->codomain, &out->codomain);
+    return 1;
+}
+
+/* Preserve the established preconditions and assertion behavior of the
+ * upstream callers. INKE has a separate failure-returning entry point. */
+void
+gluing_comput(theta_gluing_t *out, theta_couple_curve_t *E12,
+              const theta_couple_jac_point_t *xyK1_8,
+              const theta_couple_jac_point_t *xyK2_8)
+{
+    (void)gluing_comput_internal(out, E12, xyK1_8, xyK2_8, 0);
+}
+
+int
+gluing_comput_checked(theta_gluing_t *out, theta_couple_curve_t *E12,
+                     const theta_couple_jac_point_t *xyK1_8,
+                     const theta_couple_jac_point_t *xyK2_8)
+{
+    /* The checked entry point rejects exceptional coordinate charts. It
+     * does not certify arbitrary inputs as an isotropic kernel. */
+    theta_gluing_t candidate = {0};
+    if (!gluing_comput_internal(&candidate, E12, xyK1_8, xyK2_8, 1)) return 0;
+    *out = candidate;
+    return 1;
 }
 
 // sub routine of the gluing eval

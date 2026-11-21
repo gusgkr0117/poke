@@ -1,6 +1,6 @@
 #include <fp.h>
 
-extern uint64_t p[NWORDS_FIELD];
+extern const uint64_t p[NWORDS_FIELD];
 
 /*
  * If ctl == 0x00000000, then *d is set to a0
